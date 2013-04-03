@@ -1,7 +1,7 @@
 from Crypto.Cipher import AES
 import base64
 
-import os
+
 
 # the block size for the cipher object; must be 16, 24, or 32 for AES
 BLOCK_SIZE = 32
@@ -11,22 +11,29 @@ BLOCK_SIZE = 32
 # used to ensure that your value is always a multiple of BLOCK_SIZE
 PADDING = '{'
 
-# one-liner to sufficiently pad the text to be encrypted
-pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * PADDING
+# sufficiently pad the text to be encrypted
+def pad(s):
+    return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * PADDING
 
-# one-liners to encrypt/encode and decrypt/decode a string
+# encrypt/encode and decrypt/decode a string
 # encrypt with AES, encode with base64
-EncodeAES = lambda c, s: base64.b64encode(c.encrypt(pad(s)))
-DecodeAES = lambda c, e: c.decrypt(base64.b64decode(e)).rstrip(PADDING)
+
+def EncodeAES(c,s):
+    return base64.b64encode(c.encrypt(pad(s)))
+
+def DecodeAES(c,e):
+    return c.decrypt(base64.b64decode(e)).rstrip(PADDING)
 
 # generate a random secret key
-secret =  os.urandom(BLOCK_SIZE)
+#secret =  os.urandom(BLOCK_SIZE)
+secret =  pad("hello")
+print secret
 
 # create a cipher object using the random secret
 cipher = AES.new(secret)
 
 # encode a string
-encoded = EncodeAES(cipher, 'password')
+encoded = EncodeAES(cipher, 'passwordonetothre12123154654645644654654654{{{{{{{')
 print 'Encrypted string:', encoded
 
 # decode the encoded string
