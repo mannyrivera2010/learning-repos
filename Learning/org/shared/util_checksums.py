@@ -13,6 +13,7 @@ def md5Checksum(filePath):
     m = hashlib.md5()
     while True:
         data = fh.read(8192)
+        #print "*" + str(data)
         if not data:
             break
         m.update(data)
@@ -23,7 +24,7 @@ def md5Checksum(filePath):
 if __name__ == '__main__':
     pass
     print md5Checksum("test.txt")
-    print md5dig("This is a test")
+    #print md5dig("This is a test")
     
     
     

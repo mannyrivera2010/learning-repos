@@ -8,6 +8,7 @@ from obfuscate import rot47
 from obfuscate import Chaff
 from hashlib import md5
 import org.shared.util_checksums as util_checksums
+import os
 
 class VigenereRotException(Exception):
     def __init__(self, code):
@@ -90,13 +91,13 @@ if __name__ == "__main__":
     
     print "---------------"
     
-    Vig1.encrypt_file("foo.org.txt", "foo.en.txt","key")
-    print "foo.org.txt\t" + str(util_checksums.md5Checksum("foo.org.txt"))
-    print "foo.en.txt\t" + str(util_checksums.md5Checksum("foo.en.txt"))
-    Vig1.decrypt_file("foo.en.txt","foo.de.txt","key")
-    print "foo.de.txt\t" + str(util_checksums.md5Checksum("foo.de.txt"))
+    Vig1.encrypt_file("../file/data/foo.org.txt", "../file/data/foo.en.txt","key")
+    print "foo.org.txt\t" + str(util_checksums.md5Checksum("../file/data/foo.org.txt"))
+    print "foo.en.txt\t" + str(util_checksums.md5Checksum("../file/data/foo.en.txt"))
+    Vig1.decrypt_file("../file/data/foo.en.txt","../file/data/foo.de.txt","key")
+    print "foo.de.txt\t" + str(util_checksums.md5Checksum("../file/data/foo.de.txt"))
     print "\nfoo.org.txt and foo.de.txt should have the same md5"
-    print "Equals="+str(util_checksums.md5Checksum("foo.org.txt")==util_checksums.md5Checksum("foo.de.txt"))
+    print "Equals="+str(util_checksums.md5Checksum("../file/data/foo.org.txt")==util_checksums.md5Checksum("../file/data/foo.de.txt"))
     
     print "---------------"
       
