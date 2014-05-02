@@ -6,9 +6,7 @@ Created on Apr 2, 2013
 from obfuscate import Vigenere
 from obfuscate import rot47
 from obfuscate import Chaff
-
 from org.shared.utils import checksums
-
 
 class VigenereRotException(Exception):
     def __init__(self, code):
