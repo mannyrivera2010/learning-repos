@@ -1,5 +1,4 @@
 
-
 def print_debug(key, is_base_boolean, is_dict_boolean, is_list_boolean, has_key):
     print('--key:{}\tb:{}\td:{}\tl:{}\thk:{}--'.format(key,
                                                     is_base_boolean,
@@ -36,14 +35,34 @@ ex_2 = [{'_score': {'Baseline': {'raw_score': 8.0, 'weight': 1.0},
 
 ex_3 = {'b':{'d':'d', 'c':[1,2,3]},'a':'a'}
 
+ex_4 = {'b':{'d':'d', 'c':[{'z':9, 'b':3},{'a':9},3]},'a':'a'}
+
+
 
 import json
 
 print(json.dumps(shorthand_dict(ex_1),indent=2))
 # "(a:a,b:(c:(e:e,f:f),d:d))"
+print("---")
+
 print(json.dumps(shorthand_dict(ex_2),indent=2))
 # [
 #   "(_score:(Baseline:(raw_score:8.0,weight:1.0),Bookmark Collaborative Filtering:(raw_score:1.0,weight:5.0),_sort_score:13.0),title:White Horse)"
 # ]
+print("---")
 print(json.dumps(shorthand_dict(ex_3),indent=2))
 # "(a:a,b:(c:[1,2,3],d:d))"
+
+print("---")
+
+print(json.dumps(shorthand_dict(ex_4),indent=2))
+# "(a:a,b:(c:[(b:3,z:9),(a:9),3],d:d))"
+print("---")
+
+print(json.dumps(shorthand_dict([ex_1, ex_3, ex_4]),indent=2))
+# [
+#   "(a:a,b:(c:(e:e,f:f),d:d))",
+#   "(a:a,b:(c:[1,2,3],d:d))",
+#   "(a:a,b:(c:[(b:3,z:9),(a:9),3],d:d))"
+# ]
+print("---")
