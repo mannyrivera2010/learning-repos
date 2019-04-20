@@ -13,9 +13,12 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.simpletext.SimpleTextCodec;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.FSDirectory;
@@ -39,11 +42,8 @@ public class Writer {
 		
 		// Read file
 		try (CSVParser csvParser = CSVParser.parse(Paths.get("mock_data.csv"), Charset.defaultCharset(), CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
-			for (CSVRecord csvRecord : csvParser) {
-//				System.out.println("Record No - " + csvRecord.get(0));
-				int id = Integer.parseInt(csvRecord.get(0));
-				
-				Document document1 = createDocument(id, csvRecord.get(1), csvRecord.get(2), csvRecord.get(3));
+			for (CSVRecord csvRecord : csvParser) {				
+				Document document1 = createDocument(csvRecord);
 				documents.add(document1);
 			}
 		}catch(Exception e) {
@@ -71,12 +71,20 @@ public class Writer {
 	 * @param website
 	 * @return
 	 */
-	private static Document createDocument(Integer id, String firstName, String lastName, String website) {
+	private static Document createDocument(CSVRecord csvRecord) {
 		Document document = new Document();
-		document.add(new StringField("id", id.toString(), Store.YES));
-		document.add(new TextField("firstName", firstName, Store.YES));
-		document.add(new TextField("lastName", lastName, Store.YES));
-		document.add(new TextField("website", website, Store.YES));
+		document.add(new StringField("id", csvRecord.get("id"), Store.YES));
+		document.add(new TextField("first_name", csvRecord.get("first_name"), Store.YES));
+		document.add(new TextField("last_name", csvRecord.get("last_name"), Store.YES));
+		// document.add(new StringField("url", csvRecord.get("url"), Store.YES));
+		
+		FieldType fieldType = new FieldType();
+		fieldType.setStored(true);
+		// fieldType.setIndexOptions(IndexOptions.DOCS);
+		
+		document.add(new Field("is_cool_field", csvRecord.get("is_cool").getBytes(), fieldType));
+		document.add(new StringField("is_cool", csvRecord.get("is_cool"), Store.YES));
+		
 		return document;
 	}
 

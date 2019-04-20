@@ -11,6 +11,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -37,7 +38,7 @@ public class Reader {
 
 		System.out.println("--- Search by createBooleanQuery(ID) ---");
 		QueryBuilder builder = new QueryBuilder(new StandardAnalyzer());
-		Query a = builder.createBooleanQuery("id", "1");
+		Query a = builder.createBooleanQuery("is_cool", "true");
 
 		TopDocs hits = searcher.search(a, 10);
 
@@ -46,8 +47,15 @@ public class Reader {
 			
 			Map<String, Object> current = createMapFromDoc(d);
 			System.out.println(current);
+			System.out.println("");
+	        Explanation expl = searcher.explain(a, sd.doc);
+	        System.out.println(expl);
+	        System.out.println("--");
+	        
 		}
 
+
+	   
 		// Search by ID
 		System.out.println("--- Search by ID ---");
 		TopDocs foundDocs = searchById(1, searcher);
