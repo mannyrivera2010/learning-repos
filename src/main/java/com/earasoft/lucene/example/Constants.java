@@ -5,5 +5,5 @@ package com.earasoft.lucene.example;
  *
  */
 public class Constants {
-	public static final String INDEX_DIR = "lucene_index";
+    public static final String INDEX_DIR = "lucene_index";
 }
