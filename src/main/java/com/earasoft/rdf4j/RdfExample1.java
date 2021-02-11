@@ -57,7 +57,7 @@ public class RdfExample1 {
                 long postCommit = 0;
 
                 try (RepositoryConnection conn = repo1.getConnection();
-                     FileInputStream fis = new FileInputStream("Thesaurus.owl");
+                     FileInputStream fis = new FileInputStream("agro.owl");
                 ) {
                     conn.begin();
                     timerSpan.event("repo1.getConnection()");
@@ -84,6 +84,9 @@ public class RdfExample1 {
     }
 
     public static void main(String[] args) throws IOException {
+
+//        write30Times();
+
         File dataDir = new File(data_directory);
         Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
         repo1.init();
