@@ -28,7 +28,18 @@
           <type>pom</type>
       </dependency>
 
-<!--      <dependency>-->
+
+      <!-- https://mvnrepository.com/artifact/org.mapdb/mapdb -->
+      <dependency>
+          <groupId>org.mapdb</groupId>
+          <artifactId>mapdb</artifactId>
+          <version>3.0.8</version>
+      </dependency>
+
+
+
+
+      <!--      <dependency>-->
 <!--          <groupId>org.eclipse.rdf4j</groupId>-->
 <!--          <artifactId>rdf4j-repository-sail</artifactId>-->
 <!--          <version>3.5.1</version>-->
