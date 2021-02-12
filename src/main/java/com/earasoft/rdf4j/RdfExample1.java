@@ -1,5 +1,7 @@
 package com.earasoft.rdf4j;
 
+import com.earasoft.rdf4j.utils.HUtils;
+import com.earasoft.rdf4j.utils.ModelUtils;
 import com.earasoft.rdf4j.utils.TimerSpanSingleton;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -7,13 +9,16 @@ import org.eclipse.rdf4j.RDF4JException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
-import org.eclipse.rdf4j.model.impl.LinkedHashModelFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.GraphQueryResult;
+import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.query.QueryResults;
+import org.eclipse.rdf4j.query.TupleQuery;
+import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
@@ -22,16 +27,21 @@ import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RDFParser;
+import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
 import org.eclipse.rdf4j.sail.nativerdf.NativeStore;
+import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.jetbrains.annotations.NotNull;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
+import org.mapdb.Serializer;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -43,6 +53,12 @@ import java.util.concurrent.ConcurrentNavigableMap;
 
 public class RdfExample1 {
 
+    public enum BackendStore{
+        NATIVE_STORE,
+        MAPDB_STORE
+    }
+
+    public static final String FILE_DB = "file.db";
     private static String g = "http://testgraph.com/";
     private static String g1 = "http://testgraph.com/1";
     private static String g2 = "http://testgraph.com/2";
@@ -51,12 +67,9 @@ public class RdfExample1 {
 
     // spoc - subject predicate object context
 
-
-
     private static String data_directory = "data2";
 
     private static ValueFactory vf = SimpleValueFactory.getInstance();
-
 
     public static long[] loadFile(Repository repository, String file, String graphContext) throws IOException {
         long start = System.currentTimeMillis();
@@ -134,50 +147,79 @@ public class RdfExample1 {
         }
     }
 
-    public static Difference getDiff(Model original, Model changed) {
-        Model additions =  new LinkedHashModelFactory().createEmptyModel();
-        Model deletions = new LinkedHashModelFactory().createEmptyModel();
-
-        original.forEach(statement -> {
-            if (!changed.contains(statement.getSubject(), statement.getPredicate(), statement.getObject())) {
-                deletions.add(statement);
-            }
-        });
-
-        changed.forEach(statement -> {
-            if(!original.contains(statement.getSubject(), statement.getPredicate(), statement.getObject())) {
-                additions.add(statement);
-            }
-        });
-
-        return new Difference.Builder()
-                .additions(additions)
-                .deletions(deletions)
-                .build();
-    }
-
-
 
     public static void main(String[] args) throws IOException {
         long start = System.currentTimeMillis();
-//        loadbtreemap();
 
-        mapdb(start);
+        int[] settings = {1, 0};
 
-//        File dataDir = new File(data_directory);
-//        Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
-//        repo1.init();
-//
-//        long preClear = System.currentTimeMillis();
-//        try (RepositoryConnection conn = repo1.getConnection()) {
-//            conn.clear();
-//        }
-//
-////        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
-//
-//        // [0, 45859, 330022]
-//        System.out.println(Arrays.toString(loadFile(repo1,"Thesaurus.owl", "http://thesaurus.com")));
 
+        if(settings[0] == 1){
+            mapDbTesting(start, true, false, "file.db", "Thesaurus.owl", RDFFormat.RDFXML);
+        }
+
+        if(settings[1] == 1){
+            rdfj4Testing(start, false, true, false, false);
+        }
+
+    }
+
+    private static void rdfj4Testing(long start, boolean load, boolean query, boolean clear, boolean writeTttl) throws IOException {
+        File dataDir = new File(data_directory);
+        Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
+        repo1.init();
+
+        long preClear = System.currentTimeMillis();
+        if(clear){
+            try (RepositoryConnection conn = repo1.getConnection()) {
+                conn.clear();
+            }
+        }
+
+        if(load){
+            //
+            //        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
+            // [1, 31301, 206416]
+            // [0, 45859, 330022]
+            // [0, 30292, 209857]
+            System.out.println(Arrays.toString(loadFile(repo1,"Thesaurus.owl", "http://thesaurus.com")));
+        }
+
+        if(writeTttl){
+            try (RepositoryConnection conn = repo1.getConnection()) {
+                RDFWriter writer = Rio.createWriter(RDFFormat.TURTLE, new FileOutputStream(new File("all.ttl")));
+                conn.prepareGraphQuery(QueryLanguage.SPARQL,
+                        "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } limit 100").evaluate(writer);
+            }
+        }
+
+        if(query){
+            long startQuery = System.currentTimeMillis();
+
+            try (RepositoryConnection conn = repo1.getConnection()) {
+//            String queryString = "SELECT (COUNT(?s) AS ?triples) WHERE { GRAPH <http://testgraph.com/1> {?s ?p ?o} } limit 10";
+
+                String queryString = "SELECT (COUNT(?s) AS ?triples) WHERE { ?s ?p ?o }  limit 10";
+                TupleQuery tupleQuery = conn.prepareTupleQuery(queryString);
+                System.out.println("prepareTupleQuery");
+                try (TupleQueryResult result = tupleQuery.evaluate()) {
+                    System.out.println("evaluate");
+                    while (result.hasNext()) {  // iterate over the result
+                        System.out.println("hasNext");
+                        BindingSet bindingSet = result.next();
+                        Value valueOfX = bindingSet.getValue("x");
+                        Value valueOfY = bindingSet.getValue("y");
+                        // do something interesting with the values here...
+
+                        System.out.println(bindingSet); // [triples="239,596,440"^^<http://www.w3.org/2001/XMLSchema#integer>]
+
+                    }
+                }
+            } // end conn
+
+            System.out.println(String.format("rdfj4Testing\tqueryTime\t%s",
+                    (System.currentTimeMillis() - startQuery)));
+        }
 
 //
 //        diff();
@@ -218,17 +260,55 @@ public class RdfExample1 {
 //
 //        } // end conn
 
+
+
+
+
     }
 
-    private static void mapdb(long start) {
-        DB db = DBMaker.fileDB("file.db")
-                .fileMmapEnable()
-                .make();
 
-        BTreeMap<Long, byte[]> map = MapDbFactory.getLongBTreeMap(db);
-        BTreeMap<byte[], byte[]> spo_map = MapDbFactory.getSpocMap(db);
+    public static class MapDbStore{
+        final DB db;
+        final BTreeMap<Long, byte[]> map;
+        final BTreeMap<byte[], byte[]> spo_map;
 
-        System.out.println("createOrOpen: \t" + (System.currentTimeMillis()- start));
+        public MapDbStore(String mapDbFileName){
+            this.db = DBMaker.fileDB(mapDbFileName)
+                    .fileMmapEnable()
+                    .make();
+            this.map = getLongBTreeMap(db);
+            this.spo_map = getSpocMap(db);
+        }
+
+        @NotNull
+        private static BTreeMap<byte[], byte[]> getSpocMap(DB db) {
+            return db
+                    .treeMap("spoc_map", Serializer.BYTE_ARRAY, Serializer.BYTE_ARRAY)
+                    .createOrOpen();
+        }
+
+        @NotNull
+        private static BTreeMap<Long, byte[]> getLongBTreeMap(DB db) {
+            return db
+                    .treeMap("map", Serializer.LONG, (Serializer.BYTE_ARRAY))
+                    .valuesOutsideNodesEnable()
+                    .createOrOpen();
+        }
+    }
+
+
+    private static void mapDbTesting(long start, boolean load, boolean query, String mapDbFileName, String pathname, RDFFormat rdfxml) throws IOException {
+        if(load){
+            loadBtreeMap(mapDbFileName, pathname, rdfxml);
+        }
+
+        if(query){
+            MapDbStore MapDbStore = new MapDbStore(mapDbFileName);
+            DB db = MapDbStore.db;
+            BTreeMap<Long, byte[]> map = MapDbStore.map;
+            BTreeMap<byte[], byte[]> spo_map = MapDbStore.spo_map;
+
+            System.out.println("createOrOpen: \t" + (System.currentTimeMillis() - start));
 
 //        System.out.println("map.size(): " + map.size());
 
@@ -236,75 +316,63 @@ public class RdfExample1 {
 //                ByteUtils.longToBytes(10), true
 //        );
 
-        ConcurrentNavigableMap<Long, byte[]> subMap = map.subMap(
-                1l, true,
-                12l, true
-        );
+            ConcurrentNavigableMap<Long, byte[]> subMap = map.subMap(
+                    1l, true,
+                    12l, true
+            );
 
-        System.out.println("subMap.size(): " + subMap.size());
+            System.out.println("subMap.size(): " + subMap.size());
 
-
-        for(Long l : subMap.keySet()){
+            for(Long l : subMap.keySet()){
 //            System.out.println(Arrays.toString(k));
-            System.out.println(l);
-        }
+                System.out.println(l);
+            }
 
-
-        for (Iterator<Map.Entry<Long, byte[]>> it = map.entryIterator(); it.hasNext(); ) {
-            Map.Entry<Long, byte[]> k = it.next();
+            for (Iterator<Map.Entry<Long, byte[]>> it = map.entryIterator(); it.hasNext(); ) {
+                Map.Entry<Long, byte[]> k = it.next();
 
 //            System.out.println(new String(k.getValue(), "UTF-8"));
 
-            Statement st = HUtils.parseStatement(k.getValue(), vf);
+                Statement st = HUtils.parseStatement(k.getValue(), vf);
 
-            HUtils.ByteUtils.bytesToLong(spo_map.get(HUtils.toKeyValues(st)));
+                byte[] bytesIndex = spo_map.get(HUtils.toKeyValues(st));
+                if(bytesIndex!=null){
+                    HUtils.ByteUtils.bytesToLong(bytesIndex);
+                }else{
+                    System.out.println("missing index spo for" + st);
+                }
+
 //            System.out.println(st);
+            }
 
-
+            System.out.println("finished scan: \t" + (System.currentTimeMillis()- start));
+            db.close();
         }
 
-
-        System.out.println("finished scan: \t" + (System.currentTimeMillis()- start));
-
-        db.close();
     }
 
-    private static void loadbtreemap() throws IOException {
+    private static void loadBtreeMap(String mapDbFileName, String pathname, RDFFormat rdfxml) throws IOException {
         long start = System.currentTimeMillis();
 
-        DB db = DBMaker.fileDB("file.db")
-                .fileMmapEnable()
-                .make();
-        BTreeMap<Long, byte[]> map = MapDbFactory.getLongBTreeMap(db);
+        MapDbStore MapDbStore = new MapDbStore(mapDbFileName);
+        DB db = MapDbStore.db;
+        BTreeMap<Long, byte[]> map = MapDbStore.map;
+        BTreeMap<byte[], byte[]> spo_map = MapDbStore.spo_map;
 
-        BTreeMap<byte[], byte[]> spo_map = MapDbFactory.getSpocMap(db);
-
-//        spoc,posc,cosp
-
-
-// kv[0] = new KeyValue(concat(SPO_PREFIX, false, sKey, pKey, oKey), CF_NAME, cq, timestamp, type, EMPTY);
-//        kv[1] = new KeyValue(concat(POS_PREFIX, false, pKey, oKey, sKey), CF_NAME, cq, timestamp, type, EMPTY);
-//        kv[2] = new KeyValue(concat(OSP_PREFIX, false, oKey, sKey, pKey), CF_NAME, cq, timestamp, type, EMPTY);
-//        if (context != null) {
-//            byte[] cKey = hashKey(cb);
-//            kv[3] = new KeyValue(concat(CSPO_PREFIX, false, cKey, sKey, pKey, oKey), CF_NAME, cq, timestamp, type, EMPTY);
-//            kv[4] = new KeyValue(concat(CPOS_PREFIX, false, cKey, pKey, oKey, sKey), CF_NAME, cq, timestamp, type, EMPTY);
-//            kv[5] = new KeyValue(concat(COSP_PREFIX, false, cKey, oKey, sKey, pKey), CF_NAME, cq, timestamp, type, EMPTY);
-//        }
+        // spoc,posc,cosp
 
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
 //        out.write(someBytes);
         out.writeInt(5);
-// ...
-         out.toByteArray();
+        out.toByteArray();
 
         Long counter = 1L;
 
-        URL documentUrl = new File("Thesaurus.owl").toURI().toURL();
+        URL documentUrl = new File(pathname).toURI().toURL();
         InputStream inputStream = documentUrl.openStream();
 //
         String baseURI = documentUrl.toString();
-        RDFFormat format = RDFFormat.RDFXML;
+        RDFFormat format = rdfxml;
         try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
             while (res.hasNext()) {
                 Statement st = res.next();
@@ -322,7 +390,10 @@ public class RdfExample1 {
 
                 // ... do something with the resulting statement here.
                 counter = counter+1L;
-                System.out.println(counter);
+
+//                if(counter % 100000 == 0) db.commit();
+
+//                System.out.println(counter);
             }
         }
         catch (RDF4JException e) {
@@ -365,7 +436,7 @@ public class RdfExample1 {
         long preClear = System.currentTimeMillis();
         System.out.println("st - " + model.size());
 
-        System.out.println(getDiff(model, model));
+        System.out.println(ModelUtils.getDiff(model, model));
 
         long preClear1 = System.currentTimeMillis();
 
@@ -390,54 +461,48 @@ public class RdfExample1 {
         System.out.print(m);
     }
 
-//    public void diffFed() throws IOException {
-//        TimerSpanSingleton.TimerSpan timerSpan = new TimerSpanSingleton.TimerSpan("RDF4J learning");
-//        StopWatch watch = new StopWatch();
-//
-//        System.out.println("START");
-//
-//        //
-//
-//        File dataDir = new File(data_directory);
-//        Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
-//        repo1.init();
-//
-//        Repository repo2 = new SailRepository(new MemoryStore());
-//        repo2.init();
-//
-//
-//        try (RepositoryConnection conn = repo1.getConnection()) {
-//            conn.clear();
-//        }
-//        System.out.println("initialized");
-//
-//        watch.start();
-//
-//        try (RepositoryConnection conn = repo1.getConnection();
-//             FileInputStream fis = new FileInputStream("NCI_Thesaurus.owl");
-//        ) {
-//
-//            System.out.println("stream:" + fis);
-//            conn.add(fis, "", RDFFormat.RDFXML, vf.createIRI(g1));
-////            InputStream stream = Main.class.getResourceAsStream("/test.ttl");
-////            conn.add(stream, "", RDFFormat.TURTLE, vf.createIRI(g1));
-//            System.out.println(conn.getContextIDs().next().stringValue());
-//        }
-//        watch.stop();
-//        System.out.println("Loaded NCI_Thesaurus.owl in " + watch.getTime());
-//        watch.reset();
-//
-//        watch.start();
-//        try (RepositoryConnection conn = repo2.getConnection();
-//             FileInputStream fis = new FileInputStream("NCI_Thesaurus.owl");) {
-//            conn.add(fis, "", RDFFormat.RDFXML, vf.createIRI(g2));
-////            InputStream stream = Main.class.getResourceAsStream("/test2.ttl");
-////            conn.add(stream, "", RDFFormat.TURTLE, vf.createIRI(g2));
-//            System.out.println(conn.getContextIDs().next().stringValue());
-//        }
-//        watch.stop();
-//        System.out.println("Loaded NCI_Thesaurus in memory in " + watch.getTime());
-//        watch.reset();
+    public void diffFed(String file1, final String file2) throws IOException {
+        TimerSpanSingleton.TimerSpan timerSpan = new TimerSpanSingleton.TimerSpan("RDF4J learning");
+
+        System.out.println("START");
+
+        File dataDir = new File(data_directory);
+        Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
+        repo1.init();
+
+        Repository repo2 = new SailRepository(new MemoryStore());
+        repo2.init();
+
+
+        try (RepositoryConnection conn = repo1.getConnection()) {
+            conn.clear();
+        }
+        System.out.println("initialized");
+
+
+        try (RepositoryConnection conn = repo1.getConnection();
+             FileInputStream fis = new FileInputStream(file1);
+        ) {
+
+            System.out.println("stream:" + fis);
+            conn.add(fis, "", RDFFormat.RDFXML, vf.createIRI(g1));
+//            InputStream stream = Main.class.getResourceAsStream("/test.ttl");
+//            conn.add(stream, "", RDFFormat.TURTLE, vf.createIRI(g1));
+            System.out.println(conn.getContextIDs().next().stringValue());
+        }
+
+        System.out.println("Loaded NCI_Thesaurus.owl in ");
+
+        try (RepositoryConnection conn = repo2.getConnection();
+             FileInputStream fis = new FileInputStream(file2 + ".owl");) {
+            conn.add(fis, "", RDFFormat.RDFXML, vf.createIRI(g2));
+//            InputStream stream = Main.class.getResourceAsStream("/test2.ttl");
+//            conn.add(stream, "", RDFFormat.TURTLE, vf.createIRI(g2));
+            System.out.println(conn.getContextIDs().next().stringValue());
+        }
+
+        System.out.println("Loaded NCI_Thesaurus in memory in "  );
+
 //        Federation federation = new Federation();
 //        federation.addMember(repo1);
 //        federation.addMember(repo2);
@@ -479,9 +544,9 @@ public class RdfExample1 {
 //            }
 //            System.out.println("Total statements in g2 not in g1 " + model2.size());
 //        }
-//        repo1.shutDown();
-//        repo2.shutDown();
-//    }
+        repo1.shutDown();
+        repo2.shutDown();
+    }
 
 
 }

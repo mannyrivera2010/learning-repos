@@ -1,13 +1,6 @@
-package com.earasoft.rdf4j;
+package com.earasoft.rdf4j.utils;
 
-import org.eclipse.rdf4j.RDF4JException;
 import org.eclipse.rdf4j.model.*;
-import org.eclipse.rdf4j.model.impl.LinkedHashModel;
-import org.eclipse.rdf4j.model.impl.LinkedHashModelFactory;
-import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.query.BindingSet;
-import org.eclipse.rdf4j.query.GraphQueryResult;
-import org.eclipse.rdf4j.query.QueryResults;
 import org.eclipse.rdf4j.rio.ntriples.NTriplesUtil;
 
 import java.nio.ByteBuffer;

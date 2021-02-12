@@ -1,4 +1,4 @@
-package com.earasoft.rdf4j;
+package com.earasoft.rdf4j.sparql;
 
 public class Queries {
 

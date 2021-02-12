@@ -1,4 +1,4 @@
-package com.earasoft.rdf4j;
+package com.earasoft.rdf4j.sail.nativestore;
 
 import org.eclipse.rdf4j.sail.nativerdf.datastore.DataStore;
 

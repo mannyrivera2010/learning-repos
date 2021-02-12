@@ -1,4 +1,4 @@
-package com.earasoft.rdf4j;
+package com.earasoft.rdf4j.utils;
 
 import org.eclipse.rdf4j.model.Model;
 
