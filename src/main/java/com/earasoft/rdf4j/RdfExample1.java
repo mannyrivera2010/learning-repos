@@ -4,9 +4,7 @@ import com.earasoft.rdf4j.utils.TimerSpanSingleton;
 import org.eclipse.rdf4j.RDF4JException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.LinkedHashModelFactory;
@@ -24,12 +22,10 @@ import org.eclipse.rdf4j.rio.RDFParseException;
 import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.eclipse.rdf4j.rio.ntriples.NTriplesUtil;
 import org.eclipse.rdf4j.sail.nativerdf.NativeStore;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
-import org.mapdb.Serializer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,26 +33,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentNavigableMap;
 
 public class RdfExample1 {
-
-    private static final byte[] EMPTY = new byte[0];
-    private static final byte[] CF_NAME = "e".getBytes(StandardCharsets.UTF_8);
-    private static final String MD_ALGORITHM = "SHA1";
-    private static final Base64.Encoder ENC = Base64.getUrlEncoder().withoutPadding();
-
 
     private static String g = "http://testgraph.com/";
     private static String g1 = "http://testgraph.com/1";
@@ -64,54 +47,17 @@ public class RdfExample1 {
     private static String indexes = "spoc,posc,cosp"; // system
     // spoc,posc,cspo,opsc // cache
 
+    // spoc - subject predicate object context
+
+
 
     private static String data_directory = "data2";
 
     private static ValueFactory vf = SimpleValueFactory.getInstance();
 
-    private static final ThreadLocal<MessageDigest> MD = new ThreadLocal<MessageDigest>(){
-        @Override
-        protected MessageDigest initialValue() {
-            return getMessageDigest(MD_ALGORITHM);
-        }
-    };
-
-    static MessageDigest getMessageDigest(String algorithm) {
-        try {
-            return MessageDigest.getInstance(algorithm);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Helper method concatenating keys
-     * @param prefix key prefix byte
-     * @param trailingZero boolean switch adding trailing zero to the resulting key
-     * @param fragments variable number of the key fragments as byte arrays
-     * @return concatenated key as byte array
-     */
-    public static byte[] concat(byte prefix, boolean trailingZero, byte[]...fragments) {
-        int i = 1;
-        for (byte[] fr : fragments) {
-            i += fr.length;
-        }
-        byte[] res = new byte[trailingZero ? i + 1 : i];
-        res[0] = prefix;
-        i = 1;
-        for (byte[] fr : fragments) {
-            System.arraycopy(fr, 0, res, i, fr.length);
-            i += fr.length;
-        }
-        if (trailingZero) {
-            res[res.length - 1] = 0;
-        }
-        return res;
-    }
-
-
 
     public static long[] loadFile(Repository repository, String file, String graphContext) throws IOException {
+        long start = System.currentTimeMillis();
         long preParse = 0;
         long preCommit = 0;
         long postCommit = 0;
@@ -128,7 +74,11 @@ public class RdfExample1 {
             conn.commit();
             postCommit = System.currentTimeMillis();
         }
-        return new long[]{preParse, preCommit, postCommit};
+        return new long[]{
+                preParse - start,
+                preCommit - start,
+                postCommit - start
+        };
     }
 
     public static  void write30Times(){
@@ -204,170 +154,28 @@ public class RdfExample1 {
                 .build();
     }
 
-    public static class ByteUtils {
-        private static ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
 
-        public static byte[] longToBytes(long x) {
-            buffer.putLong(0, x);
-            return buffer.array();
-        }
-
-        public static long bytesToLong(byte[] bytes) {
-            buffer.rewind(); //
-            buffer.put(bytes, 0, bytes.length);
-            buffer.flip();//need flip
-            return buffer.getLong();
-        }
-    }
-
-    public static byte[] writeBytes(Value v) {
-        return NTriplesUtil.toNTriplesString(v).getBytes(StandardCharsets.UTF_8);
-    }
-
-//   / * Conversion method from Subj, Pred, Obj and optional Context into an array of HBase keys
-//     * @param subj subject Resource
-//     * @param pred predicate IRI
-//     * @param obj object Value
-//     * @param context optional static context Resource
-//     * @param delete boolean switch whether to get KeyValues for deletion instead of for insertion
-//     * @param timestamp long timestamp value for time-ordering purposes
-//     * @return array of KeyValues
-//     */
-    public static byte[] toKeyValues(Statement s) {
-        return toKeyValues(s.getSubject(), s.getPredicate(), s.getObject(), s.getContext());
-    }
-
-    public static byte[] toKeyValues(Resource subj, IRI pred, Value obj, Resource context) {
-        byte[] sb = writeBytes(subj); // subject bytes
-        byte[] pb = writeBytes(pred); // predicate bytes
-        byte[] ob = writeBytes(obj); // object bytes
-        byte[] cb = context == null ? new byte[0] : writeBytes(context); // context (graph) bytes
-
-        byte[] sKey = hashKey(sb);  //subject key
-        byte[] pKey = hashKey(pb);  //predicate key
-        byte[] oKey = hashKey(ob);  //object key
-
-        //bytes to be used
-        byte[] cq = ByteBuffer.allocate(sb.length + pb.length + ob.length + cb.length + 12)
-                .putInt(sb.length).putInt(pb.length).putInt(ob.length)
-                .put(sb).put(pb).put(ob).put(cb).array();
-
-        return cq;
-    }
-
-    public static byte[] hashKey(byte[] key) {
-        MessageDigest md = MD.get();
-        try {
-            md.update(key);
-            return md.digest();
-        } finally {
-            md.reset();
-        }
-    }
-
-    public static byte[] hashKey(Value v) {
-        return v == null ? null : hashKey(writeBytes(v));
-    }
-
-
-    public static Value readValue(byte[] b, ValueFactory vf) {
-        return NTriplesUtil.parseValue(new String(b, StandardCharsets.UTF_8), vf);
-    }
-
-    public static Resource readResource(byte[] b, ValueFactory vf) {
-        return NTriplesUtil.parseResource(new String(b, StandardCharsets.UTF_8), vf);
-    }
-
-    public static IRI readIRI(byte[] b, ValueFactory vf) {
-        return NTriplesUtil.parseURI(new String(b, StandardCharsets.UTF_8), vf);
-    }
-
-//    https://github.com/Merck/Halyard/blob/master/common/src/main/java/com/msd/gin/halyard/common/HalyardTableUtils.java
-    public static Statement parseStatement(byte[] b, ValueFactory vf) {
-        ByteBuffer bb = ByteBuffer.wrap(b);
-        byte[] sb = new byte[bb.getInt()];
-        byte[] pb = new byte[bb.getInt()];
-        byte[] ob = new byte[bb.getInt()];
-        bb.get(sb);
-        bb.get(pb);
-        bb.get(ob);
-        byte[] cb = new byte[bb.remaining()];
-        bb.get(cb);
-
-        Resource subj = readResource(sb, vf);
-        IRI pred = readIRI(pb, vf);
-        Value value = readValue(ob, vf);
-        Statement stmt;
-
-        if (cb.length == 0) {
-            stmt = vf.createStatement(subj, pred, value);
-        } else {
-            Resource context = readResource(cb, vf);
-            stmt = vf.createStatement(subj, pred, value, context);
-        }
-        return stmt;
-    }
 
     public static void main(String[] args) throws IOException {
         long start = System.currentTimeMillis();
 //        loadbtreemap();
 
-        DB db = DBMaker.fileDB("file.db")
-                .fileMmapEnable()
-                .make();
-
-        BTreeMap<Long, byte[]> map = db
-                .treeMap("map", Serializer.LONG, Serializer.BYTE_ARRAY)
-                .createOrOpen();
-
-        System.out.println("createOrOpen: \t" + (System.currentTimeMillis()-start));
-
-//        System.out.println("map.size(): " + map.size());
-
-//        ConcurrentNavigableMap<byte[], byte[]> subMap = map.prefixSubMap(
-//                ByteUtils.longToBytes(10), true
-//        );
-
-
-        ConcurrentNavigableMap<Long, byte[]> subMap = map.subMap(
-                1l, true,
-                12l, true
-        );
-
-        System.out.println("subMap.size(): " + subMap.size());
-
-
-        for(Long l : subMap.keySet()){
-//            System.out.println(Arrays.toString(k));
-            System.out.println(l);
-        }
-
-
-        for (Iterator<Map.Entry<Long, byte[]>> it = map.entryIterator(); it.hasNext(); ) {
-            Map.Entry<Long, byte[]> k = it.next();
-
-            System.out.println(new String(k.getValue(), "UTF-8"));
-
-            Statement st = parseStatement(k.getValue(), vf);
-            System.out.println(st);
-
-
-        }
-
-
-        System.out.println("finished scan: \t" + (System.currentTimeMillis()-start));
-
-        db.close();
+        mapdb(start);
 
 //        File dataDir = new File(data_directory);
 //        Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
 //        repo1.init();
 //
-//
 //        long preClear = System.currentTimeMillis();
 //        try (RepositoryConnection conn = repo1.getConnection()) {
 //            conn.clear();
 //        }
+//
+////        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
+//
+//        // [0, 45859, 330022]
+//        System.out.println(Arrays.toString(loadFile(repo1,"Thesaurus.owl", "http://thesaurus.com")));
+
 
 //
 //        diff();
@@ -408,25 +216,68 @@ public class RdfExample1 {
 //
 //        } // end conn
 
+    }
+
+    private static void mapdb(long start) {
+        DB db = DBMaker.fileDB("file.db")
+                .fileMmapEnable()
+                .make();
+
+        BTreeMap<Long, byte[]> map = MapDbFactory.getLongBTreeMap(db);
+        BTreeMap<byte[], byte[]> spo_map = MapDbFactory.getSpocMap(db);
+
+        System.out.println("createOrOpen: \t" + (System.currentTimeMillis()- start));
+
+//        System.out.println("map.size(): " + map.size());
+
+//        ConcurrentNavigableMap<byte[], byte[]> subMap = map.prefixSubMap(
+//                ByteUtils.longToBytes(10), true
+//        );
+
+        ConcurrentNavigableMap<Long, byte[]> subMap = map.subMap(
+                1l, true,
+                12l, true
+        );
+
+        System.out.println("subMap.size(): " + subMap.size());
 
 
+        for(Long l : subMap.keySet()){
+//            System.out.println(Arrays.toString(k));
+            System.out.println(l);
+        }
 
 
+        for (Iterator<Map.Entry<Long, byte[]>> it = map.entryIterator(); it.hasNext(); ) {
+            Map.Entry<Long, byte[]> k = it.next();
+
+//            System.out.println(new String(k.getValue(), "UTF-8"));
+
+            Statement st = HUtils.parseStatement(k.getValue(), vf);
+
+            HUtils.ByteUtils.bytesToLong(spo_map.get(HUtils.toKeyValues(st)));
+//            System.out.println(st);
 
 
+        }
+
+
+        System.out.println("finished scan: \t" + (System.currentTimeMillis()- start));
+
+        db.close();
     }
 
     private static void loadbtreemap() throws IOException {
         long start = System.currentTimeMillis();
 
-        DB db = DBMaker.fileDB("file.db").fileMmapEnable().make();
-        BTreeMap<Long, byte[]> map = db
-                .treeMap("map", Serializer.LONG, Serializer.BYTE_ARRAY)
-                .createOrOpen();
+        DB db = DBMaker.fileDB("file.db")
+                .fileMmapEnable()
+                .make();
+        BTreeMap<Long, byte[]> map = MapDbFactory.getLongBTreeMap(db);
 
-        BTreeMap<byte[], Long> spo_map = db
-                .treeMap("spo_map", Serializer.BYTE_ARRAY, Serializer.LONG)
-                .createOrOpen();
+        BTreeMap<byte[], byte[]> spo_map = MapDbFactory.getSpocMap(db);
+
+//        spoc,posc,cosp
 
 
 // kv[0] = new KeyValue(concat(SPO_PREFIX, false, sKey, pKey, oKey), CF_NAME, cq, timestamp, type, EMPTY);
@@ -450,19 +301,21 @@ public class RdfExample1 {
         try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
             while (res.hasNext()) {
                 Statement st = res.next();
+
 //                System.out.println(st.toString());
 
 //                byte[] key = ByteUtils.longToBytes(counter);
 
-                byte[] value = toKeyValues(st);
+                byte[] value = HUtils.toKeyValues(st);
 
+                spo_map.put(value, HUtils.ByteUtils.longToBytes(counter)); //
 //                System.out.println(Arrays.toString(value));
 
                 map.put(counter, value);
 
                 // ... do something with the resulting statement here.
-                counter=counter+1L;
-//                System.out.println(counter);
+                counter = counter+1L;
+                System.out.println(counter);
             }
         }
         catch (RDF4JException e) {
@@ -471,7 +324,6 @@ public class RdfExample1 {
         finally {
             inputStream.close();
         }
-
 
         System.out.println("inputStream.close(): \t" + (System.currentTimeMillis()-start));
         db.close();
@@ -624,55 +476,5 @@ public class RdfExample1 {
 //        repo2.shutDown();
 //    }
 
-
-    private static String getQuery(String g1, String g2) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("select ?s ?p ?o WHERE { VALUES ?g1 {<");
-        sb.append(g1);
-        sb.append(">} ");
-        sb.append(" VALUES ?g2 {<");
-        sb.append(g2);
-        sb.append(">} GRAPH ?g1 { ?s ?p ?o .}");
-        sb.append(" FILTER NOT EXISTS { GRAPH ?g2");
-        sb.append(" { ?s ?p ?o } } }");
-        return sb.toString();
-    }
-
-    public static class Difference {
-        private Model additions;
-        private Model deletions;
-
-        private Difference(Builder builder) {
-            this.additions = builder.additions;
-            this.deletions = builder.deletions;
-        }
-
-        public Model getAdditions() {
-            return additions;
-        }
-
-        public Model getDeletions() {
-            return deletions;
-        }
-
-        public static class Builder {
-            private Model additions;
-            private Model deletions;
-
-            public Builder additions(Model additions) {
-                this.additions = additions;
-                return this;
-            }
-
-            public Builder deletions(Model deletions) {
-                this.deletions = deletions;
-                return this;
-            }
-
-            public Difference build() {
-                return new Difference(this);
-            }
-        }
-    }
 
 }
