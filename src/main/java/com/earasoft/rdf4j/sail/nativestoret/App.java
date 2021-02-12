@@ -1,6 +1,5 @@
-package com.earasoft.rdf4j.sail.nativestore;
+package com.earasoft.rdf4j.sail.nativestoret;
 
-import org.eclipse.rdf4j.common.io.NioFile;
 import org.eclipse.rdf4j.sail.nativerdf.btree.BTree;
 
 import java.io.File;

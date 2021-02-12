@@ -1,5 +1,6 @@
 package com.earasoft.rdf4j;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.NativeStore;
 import com.earasoft.rdf4j.utils.HUtils;
 import com.earasoft.rdf4j.utils.ModelUtils;
 import com.earasoft.rdf4j.utils.TimerSpanSingleton;
@@ -30,7 +31,7 @@ import org.eclipse.rdf4j.rio.RDFParser;
 import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
-import org.eclipse.rdf4j.sail.nativerdf.NativeStore;
+
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.jetbrains.annotations.NotNull;
 import org.mapdb.BTreeMap;
@@ -44,14 +45,22 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 
+import org.rocksdb.*;
+
 public class RdfExample1 {
+
+    static {
+        RocksDB.loadLibrary();
+    }
 
     public enum BackendStore{
         NATIVE_STORE,
@@ -151,20 +160,158 @@ public class RdfExample1 {
     public static void main(String[] args) throws IOException {
         long start = System.currentTimeMillis();
 
-        int[] settings = {1, 0};
-
+        int[] settings = {0, 0, 1};
 
         if(settings[0] == 1){
-            mapDbTesting(start, true, false, "file.db", "Thesaurus.owl", RDFFormat.RDFXML);
+            mapDbTesting(start, true, false, "file.db", "temp_data/Thesaurus.owl", RDFFormat.RDFXML);
         }
 
         if(settings[1] == 1){
-            rdfj4Testing(start, false, true, false, false);
+            // [1, 31301, 206416]
+            // [0, 45859, 330022]
+            // [0, 30292, 209857]
+            // [29, 31511, 167648]
+
+            rdfj4Testing(start, true, false, false, false, "temp_data/Thesaurus.owl");
+        }
+
+        if(settings[2] == 1){
+            long rockdbTesting = System.currentTimeMillis();
+            // rockdbTesting	end	67320
+            // rockdbTesting	end	223412 , 4 writes
+            // 148542
+            rockdbTesting("temp_data/Thesaurus.owl", RDFFormat.RDFXML);
+
+            System.out.println(String.format("rockdbTesting\tend\t%s",
+                    (System.currentTimeMillis() - rockdbTesting)));
+
         }
 
     }
 
-    private static void rdfj4Testing(long start, boolean load, boolean query, boolean clear, boolean writeTttl) throws IOException {
+    private static final String cfdbPath = "./rocksdb-data-cf/";
+
+
+    private static void rockdbTesting(String pathname, RDFFormat rdfxml){
+        System.out.println("testDefaultColumnFamily begin...");
+        //If the file does not exist, create the file first
+
+        try (final ColumnFamilyOptions cfOpts = new ColumnFamilyOptions()
+                .optimizeUniversalStyleCompaction()
+
+//                .optimizeLevelStyleCompaction()
+        ) {
+            // list of column family descriptors, first entry must always be default column family
+
+            // spoc,posc,cosp
+            final List cfDescriptors = Arrays.asList(
+                    new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts),
+                    new ColumnFamilyDescriptor("spoc".getBytes(), cfOpts),
+                    new ColumnFamilyDescriptor("posc".getBytes(), cfOpts),
+                    new ColumnFamilyDescriptor("cosp".getBytes(), cfOpts)
+            );
+
+
+            try (final DBOptions dbOptions = new DBOptions()
+                    .setCreateIfMissing(true)
+                    .setCreateMissingColumnFamilies(true)
+                    .setAllowConcurrentMemtableWrite(true)
+                    .setMaxSubcompactions(6);
+            ) {
+
+                List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
+                try (final RocksDB rocksDB = RocksDB.open(dbOptions, cfdbPath, cfDescriptors, cfHandles) ) {
+
+
+                    //Simple key value
+//                byte[] key = "Hello".getBytes();
+//                rocksDB.put(key, "World".getBytes());
+
+                    System.out.println(cfHandles);
+
+                    ///////////////////
+                    URL documentUrl = new File(pathname).toURI().toURL();
+                    InputStream inputStream = documentUrl.openStream();
+//
+                    String baseURI = documentUrl.toString();
+                    RDFFormat format = rdfxml;
+                    long counter = 0;
+                    try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
+                        while (res.hasNext()) {
+                            Statement st = res.next();
+
+//                System.out.println(st.toString());
+
+//
+
+
+                            byte[] key = HUtils.ByteUtils.longToBytes(counter);
+//                            byte[] key = UUID.randomUUID().toString().getBytes();
+                            byte[] value = HUtils.toKeyValues(st);
+
+                            try(WriteOptions writeOpt = new WriteOptions();
+                                WriteBatch batch = new WriteBatch();){
+
+                                // note having huge batch makes starting up longer
+
+//                        for (int i = 0; i < keys.size(); ++i) {
+//                            batch.put(keys.get(i), values.get(i));
+//                        }
+
+                                boolean first = true;
+                                for(ColumnFamilyHandle h :cfHandles){
+
+                                    if(first){
+                                        batch.put(h, key, value);
+                                    }else{
+                                        batch.put(h, value, HUtils.EMPTY );
+                                    }
+                                    first = false;
+                                }
+
+
+
+                                rocksDB.write(writeOpt, batch);
+                            }
+
+                            // ... do something with the resulting statement here.
+                            counter = counter+1L;
+
+                            if(counter % 100000 == 0) System.out.println(counter);
+
+
+                        }
+                    }
+
+
+
+                    /////////////////
+
+                    //Print all [key - value]
+//                RocksIterator iter = rocksDB.newIterator();
+//                for (iter.seekToFirst(); iter.isValid(); iter.next()) {
+//                    System.out.println("iterator key:" + new String(iter.key()) + ", iter value:" + new String(iter.value()));
+//                }
+
+
+                } catch (RocksDBException e) {
+                    e.printStackTrace();
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }finally {
+                    // NOTE frees the column family handles before freeing the db
+                    for (final ColumnFamilyHandle cfHandle : cfHandles) {
+                        cfHandle.close();
+                    }
+                }
+            }
+
+        }
+    }
+
+    private static void rdfj4Testing(long start, boolean load, boolean query, boolean clear, boolean writeTttl, final String thesaurus) throws IOException {
         File dataDir = new File(data_directory);
         Repository repo1 = new SailRepository(new NativeStore(dataDir, indexes));
         repo1.init();
@@ -179,10 +326,8 @@ public class RdfExample1 {
         if(load){
             //
             //        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
-            // [1, 31301, 206416]
-            // [0, 45859, 330022]
-            // [0, 30292, 209857]
-            System.out.println(Arrays.toString(loadFile(repo1,"Thesaurus.owl", "http://thesaurus.com")));
+
+            System.out.println(Arrays.toString(loadFile(repo1, thesaurus, "http://thesaurus.com")));
         }
 
         if(writeTttl){

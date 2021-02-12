@@ -10,7 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public class HUtils {
-    private static final byte[] EMPTY = new byte[0];
+    public static final byte[] EMPTY = new byte[0];
     private static final byte[] CF_NAME = "e".getBytes(StandardCharsets.UTF_8);
     private static final String MD_ALGORITHM = "SHA1";
     static final ThreadLocal<MessageDigest> MD = new ThreadLocal<MessageDigest>(){
