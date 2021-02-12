@@ -1,6 +1,8 @@
 package com.earasoft.rdf4j;
 
 import com.earasoft.rdf4j.utils.TimerSpanSingleton;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import org.eclipse.rdf4j.RDF4JException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
@@ -290,6 +292,11 @@ public class RdfExample1 {
 //            kv[5] = new KeyValue(concat(COSP_PREFIX, false, cKey, oKey, sKey, pKey), CF_NAME, cq, timestamp, type, EMPTY);
 //        }
 
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+//        out.write(someBytes);
+        out.writeInt(5);
+// ...
+         out.toByteArray();
 
         Long counter = 1L;
 
