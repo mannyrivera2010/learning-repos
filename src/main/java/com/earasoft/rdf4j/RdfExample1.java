@@ -1,17 +1,14 @@
 package com.earasoft.rdf4j;
 
+import com.earasoft.rdf4j.mapdb.MapDbTesting;
 import com.earasoft.rdf4j.sail.nativerockrdf.NativeStore;
 import com.earasoft.rdf4j.utils.HUtils;
 import com.earasoft.rdf4j.utils.ModelUtils;
 import com.earasoft.rdf4j.utils.TimerSpanSingleton;
+import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import org.eclipse.rdf4j.RDF4JException;
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.*;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.BindingSet;
@@ -32,12 +29,8 @@ import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.StatementCollector;
 
+import org.eclipse.rdf4j.rio.ntriples.NTriplesUtil;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
-import org.jetbrains.annotations.NotNull;
-import org.mapdb.BTreeMap;
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.Serializer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,12 +40,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.*;
+
+import java.util.zip.CRC32;
 
 import org.rocksdb.*;
 
@@ -61,6 +51,11 @@ public class RdfExample1 {
     static {
         RocksDB.loadLibrary();
     }
+
+    /**
+     * The checksum to use for calculating data hashes.
+     */
+    private static final CRC32 crc32 = new CRC32();
 
     public enum BackendStore{
         NATIVE_STORE,
@@ -78,9 +73,9 @@ public class RdfExample1 {
 
     private static String data_directory = "data2";
 
-    private static ValueFactory vf = SimpleValueFactory.getInstance();
+    public static ValueFactory vf = SimpleValueFactory.getInstance();
 
-    public static long[] loadFile(Repository repository, String file, String graphContext) throws IOException {
+    public static long[] loadFile(Repository repository, String file, String graphContext, RDFFormat rdfxml) throws IOException {
         long start = System.currentTimeMillis();
         long preParse = 0;
         long preCommit = 0;
@@ -92,7 +87,7 @@ public class RdfExample1 {
             preParse = System.currentTimeMillis();
             conn.begin();
             IRI graphIri = vf.createIRI(graphContext);
-            conn.add(fis, "", RDFFormat.RDFXML, graphIri);
+            conn.add(fis, "", rdfxml, graphIri);
 
             preCommit = System.currentTimeMillis();
             conn.commit();
@@ -162,28 +157,45 @@ public class RdfExample1 {
 
         int[] settings = {0, 0, 1};
 
-        if(settings[0] == 1){
-            mapDbTesting(start, true, false, "file.db", "temp_data/Thesaurus.owl", RDFFormat.RDFXML);
-        }
+        int times = 1;
 
-        if(settings[1] == 1){
-            // [1, 31301, 206416]
-            // [0, 45859, 330022]
-            // [0, 30292, 209857]
-            // [29, 31511, 167648]
+        for(int i = 1; i<=times; i++) {
+            System.out.println(i);
 
-            rdfj4Testing(start, true, false, false, false, "temp_data/Thesaurus.owl");
-        }
+            String pathname = "temp_data/Thesaurus.owl";
+            pathname = "example_data/agro.owl";
 
-        if(settings[2] == 1){
-            long rockdbTesting = System.currentTimeMillis();
-            // rockdbTesting	end	67320
-            // rockdbTesting	end	223412 , 4 writes
-            // 148542
-            rockdbTesting("temp_data/Thesaurus.owl", RDFFormat.RDFXML);
+            if(settings[0] == 1){
+                MapDbTesting.mapDbTesting(start, true, false, "file.db", pathname, RDFFormat.RDFXML);
+            }
 
-            System.out.println(String.format("rockdbTesting\tend\t%s",
-                    (System.currentTimeMillis() - rockdbTesting)));
+            if(settings[1] == 1){
+                // [1, 31301, 206416]
+                // [0, 45859, 330022]
+                // [0, 30292, 209857]
+                // [29, 31511, 167648]
+                // [40, 45257, 312164] 1
+                // [36, 42486, 266519] 2
+                // [34, 43440, 249619] 3
+
+                rdfj4Testing(start, true, false, false, false, pathname);
+            }
+
+            if(settings[2] == 1){
+                long rockdbTesting = System.currentTimeMillis();
+                // rockdbTesting	end	67320
+                // rockdbTesting	end	223412 , 4 writes
+                // 148542
+
+                // 202408 Laptop 1st
+                // 190614 Laptop 2st
+                rockdbTesting(start,true, true, pathname, RDFFormat.RDFXML);
+
+                System.out.println(String.format("rockdbTesting\tend\t%s",
+                        (System.currentTimeMillis() - rockdbTesting)));
+
+            }
+
 
         }
 
@@ -192,108 +204,103 @@ public class RdfExample1 {
     private static final String cfdbPath = "./rocksdb-data-cf/";
 
 
-    private static void rockdbTesting(String pathname, RDFFormat rdfxml){
-        System.out.println("testDefaultColumnFamily begin...");
-        //If the file does not exist, create the file first
+    private static int getDataHash(byte[] data) {
+        synchronized (crc32) {
+            crc32.update(data);
+            int crc = (int) crc32.getValue();
+            crc32.reset();
+            return crc;
+        }
+    }
 
+    private static void rockdbTesting(long start, boolean load, boolean query, String pathname, RDFFormat rdfxml){
         try (final ColumnFamilyOptions cfOpts = new ColumnFamilyOptions()
                 .optimizeUniversalStyleCompaction()
-
-//                .optimizeLevelStyleCompaction()
+             .setCompressionType(CompressionType.LZ4_COMPRESSION)
+             .setCompressionOptions(new CompressionOptions().setEnabled(true))
         ) {
-            // list of column family descriptors, first entry must always be default column family
-
             // spoc,posc,cosp
             final List cfDescriptors = Arrays.asList(
-                    new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts),
-                    new ColumnFamilyDescriptor("spoc".getBytes(), cfOpts),
-                    new ColumnFamilyDescriptor("posc".getBytes(), cfOpts),
-                    new ColumnFamilyDescriptor("cosp".getBytes(), cfOpts)
+                    new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)
+                    ,new ColumnFamilyDescriptor("spoc".getBytes(), cfOpts)
+                    ,new ColumnFamilyDescriptor("posc".getBytes(), cfOpts)
+                    ,new ColumnFamilyDescriptor("cosp".getBytes(), cfOpts)
             );
-
 
             try (final DBOptions dbOptions = new DBOptions()
                     .setCreateIfMissing(true)
                     .setCreateMissingColumnFamilies(true)
                     .setAllowConcurrentMemtableWrite(true)
-                    .setMaxSubcompactions(6);
+                    .setIncreaseParallelism(4)
+//                    .setAllowMmapWrites(true)
+                    .setMaxSubcompactions(4)
             ) {
 
                 List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
                 try (final RocksDB rocksDB = RocksDB.open(dbOptions, cfdbPath, cfDescriptors, cfHandles) ) {
-
-
-                    //Simple key value
-//                byte[] key = "Hello".getBytes();
-//                rocksDB.put(key, "World".getBytes());
-
-                    System.out.println(cfHandles);
-
                     ///////////////////
-                    URL documentUrl = new File(pathname).toURI().toURL();
-                    InputStream inputStream = documentUrl.openStream();
+                    System.out.println("Connected");
+                    if(load){
+                        URL documentUrl = new File(pathname).toURI().toURL();
+                        InputStream inputStream = documentUrl.openStream();
 //
-                    String baseURI = documentUrl.toString();
-                    RDFFormat format = rdfxml;
-                    long counter = 0;
-                    try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
-                        while (res.hasNext()) {
-                            Statement st = res.next();
+                        String baseURI = documentUrl.toString();
+                        RDFFormat format = rdfxml;
+                        long counter = 0;
+                        try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
+                            while (res.hasNext()) {
+                                Statement st = res.next();
+                                st = vf.createStatement(st.getSubject(), st.getPredicate(), st.getObject(), vf.createIRI("http://graph1.com"));
+                                // byte[] key = HUtils.ByteUtils.longToBytes(counter);
+//                                byte[] key = UUID.randomUUID().toString().getBytes();
 
-//                System.out.println(st.toString());
 
-//
+//                            byte[] value = HUtils.toKeyValues(st);
+
+                                byte[] value = statementToByteArray(st);
+
+                                ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
+                                keyBuffer.writeInt(getDataHash(value));
 
 
-                            byte[] key = HUtils.ByteUtils.longToBytes(counter);
-//                            byte[] key = UUID.randomUUID().toString().getBytes();
-                            byte[] value = HUtils.toKeyValues(st);
+                                try(WriteOptions writeOpt = new WriteOptions();
+                                    WriteBatch batch = new WriteBatch();){
 
-                            try(WriteOptions writeOpt = new WriteOptions();
-                                WriteBatch batch = new WriteBatch();){
+                                    boolean first = true;
+                                    for(ColumnFamilyHandle h :cfHandles){
 
-                                // note having huge batch makes starting up longer
-
-//                        for (int i = 0; i < keys.size(); ++i) {
-//                            batch.put(keys.get(i), values.get(i));
-//                        }
-
-                                boolean first = true;
-                                for(ColumnFamilyHandle h :cfHandles){
-
-                                    if(first){
-                                        batch.put(h, key, value);
-                                    }else{
-                                        batch.put(h, value, HUtils.EMPTY );
+                                        if(first){
+                                            batch.put(h, keyBuffer.toByteArray(), value);
+                                        }else{
+                                            batch.put(h, value, HUtils.EMPTY);
+                                        }
+                                        first = false;
                                     }
-                                    first = false;
+                                    rocksDB.write(writeOpt, batch);
                                 }
-
-
-
-                                rocksDB.write(writeOpt, batch);
+                                // ... do something with the resulting statement here.
+                                counter = counter+1L;
+                                if(counter % 1000000 == 0) System.out.println(counter);
                             }
-
-                            // ... do something with the resulting statement here.
-                            counter = counter+1L;
-
-                            if(counter % 100000 == 0) System.out.println(counter);
-
-
                         }
-                    }
-
-
-
+                    } // end load
                     /////////////////
+                    if(query){
+                        System.out.println("query");
+                        //Print all [key - value]
+                        RocksIterator iter = rocksDB.newIterator(cfHandles.get(0));
 
-                    //Print all [key - value]
-//                RocksIterator iter = rocksDB.newIterator();
-//                for (iter.seekToFirst(); iter.isValid(); iter.next()) {
-//                    System.out.println("iterator key:" + new String(iter.key()) + ", iter value:" + new String(iter.value()));
-//                }
+                        long counterRock = 1;
+                        for (iter.seekToFirst(); iter.isValid(); iter.next()) {
+                            System.out.println("iterator key:" + new String(iter.key()) + "\n, iter value:" + new String(iter.value()));
 
+                            Statement st = parseStatement(iter.value(), vf);
 
+                            System.out.println(st);
+                            counterRock = counterRock + 1;
+                        }
+                        System.out.println("counterRock: " + counterRock);
+                    }
                 } catch (RocksDBException e) {
                     e.printStackTrace();
                 } catch (MalformedURLException e) {
@@ -324,10 +331,8 @@ public class RdfExample1 {
         }
 
         if(load){
-            //
-            //        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
-
-            System.out.println(Arrays.toString(loadFile(repo1, thesaurus, "http://thesaurus.com")));
+            // System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
+            System.out.println(Arrays.toString(loadFile(repo1, thesaurus, "http://thesaurus.com", RDFFormat.RDFXML)));
         }
 
         if(writeTttl){
@@ -345,6 +350,9 @@ public class RdfExample1 {
 //            String queryString = "SELECT (COUNT(?s) AS ?triples) WHERE { GRAPH <http://testgraph.com/1> {?s ?p ?o} } limit 10";
 
                 String queryString = "SELECT (COUNT(?s) AS ?triples) WHERE { ?s ?p ?o }  limit 10";
+
+
+
                 TupleQuery tupleQuery = conn.prepareTupleQuery(queryString);
                 System.out.println("prepareTupleQuery");
                 try (TupleQueryResult result = tupleQuery.evaluate()) {
@@ -405,153 +413,38 @@ public class RdfExample1 {
 //
 //        } // end conn
 
-
-
-
-
     }
 
 
-    public static class MapDbStore{
-        final DB db;
-        final BTreeMap<Long, byte[]> map;
-        final BTreeMap<byte[], byte[]> spo_map;
-
-        public MapDbStore(String mapDbFileName){
-            this.db = DBMaker.fileDB(mapDbFileName)
-                    .fileMmapEnable()
-                    .make();
-            this.map = getLongBTreeMap(db);
-            this.spo_map = getSpocMap(db);
-        }
-
-        @NotNull
-        private static BTreeMap<byte[], byte[]> getSpocMap(DB db) {
-            return db
-                    .treeMap("spoc_map", Serializer.BYTE_ARRAY, Serializer.BYTE_ARRAY)
-                    .createOrOpen();
-        }
-
-        @NotNull
-        private static BTreeMap<Long, byte[]> getLongBTreeMap(DB db) {
-            return db
-                    .treeMap("map", Serializer.LONG, (Serializer.BYTE_ARRAY))
-                    .valuesOutsideNodesEnable()
-                    .createOrOpen();
-        }
-    }
-
-
-    private static void mapDbTesting(long start, boolean load, boolean query, String mapDbFileName, String pathname, RDFFormat rdfxml) throws IOException {
-        if(load){
-            loadBtreeMap(mapDbFileName, pathname, rdfxml);
-        }
-
-        if(query){
-            MapDbStore MapDbStore = new MapDbStore(mapDbFileName);
-            DB db = MapDbStore.db;
-            BTreeMap<Long, byte[]> map = MapDbStore.map;
-            BTreeMap<byte[], byte[]> spo_map = MapDbStore.spo_map;
-
-            System.out.println("createOrOpen: \t" + (System.currentTimeMillis() - start));
-
-//        System.out.println("map.size(): " + map.size());
-
-//        ConcurrentNavigableMap<byte[], byte[]> subMap = map.prefixSubMap(
-//                ByteUtils.longToBytes(10), true
-//        );
-
-            ConcurrentNavigableMap<Long, byte[]> subMap = map.subMap(
-                    1l, true,
-                    12l, true
-            );
-
-            System.out.println("subMap.size(): " + subMap.size());
-
-            for(Long l : subMap.keySet()){
-//            System.out.println(Arrays.toString(k));
-                System.out.println(l);
-            }
-
-            for (Iterator<Map.Entry<Long, byte[]>> it = map.entryIterator(); it.hasNext(); ) {
-                Map.Entry<Long, byte[]> k = it.next();
-
-//            System.out.println(new String(k.getValue(), "UTF-8"));
-
-                Statement st = HUtils.parseStatement(k.getValue(), vf);
-
-                byte[] bytesIndex = spo_map.get(HUtils.toKeyValues(st));
-                if(bytesIndex!=null){
-                    HUtils.ByteUtils.bytesToLong(bytesIndex);
-                }else{
-                    System.out.println("missing index spo for" + st);
-                }
-
-//            System.out.println(st);
-            }
-
-            System.out.println("finished scan: \t" + (System.currentTimeMillis()- start));
-            db.close();
-        }
-
-    }
-
-    private static void loadBtreeMap(String mapDbFileName, String pathname, RDFFormat rdfxml) throws IOException {
-        long start = System.currentTimeMillis();
-
-        MapDbStore MapDbStore = new MapDbStore(mapDbFileName);
-        DB db = MapDbStore.db;
-        BTreeMap<Long, byte[]> map = MapDbStore.map;
-        BTreeMap<byte[], byte[]> spo_map = MapDbStore.spo_map;
-
-        // spoc,posc,cosp
-
+    private static byte[] statementToByteArray(Statement st) {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-//        out.write(someBytes);
-        out.writeInt(5);
-        out.toByteArray();
+        out.writeUTF(NTriplesUtil.toNTriplesString(st.getSubject()));
+        out.writeUTF(NTriplesUtil.toNTriplesString(st.getPredicate()));
+        out.writeUTF(NTriplesUtil.toNTriplesString(st.getObject()));
 
-        Long counter = 1L;
-
-        URL documentUrl = new File(pathname).toURI().toURL();
-        InputStream inputStream = documentUrl.openStream();
-//
-        String baseURI = documentUrl.toString();
-        RDFFormat format = rdfxml;
-        try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
-            while (res.hasNext()) {
-                Statement st = res.next();
-
-//                System.out.println(st.toString());
-
-//                byte[] key = ByteUtils.longToBytes(counter);
-
-                byte[] value = HUtils.toKeyValues(st);
-
-                spo_map.put(value, HUtils.ByteUtils.longToBytes(counter)); //
-//                System.out.println(Arrays.toString(value));
-
-                map.put(counter, value);
-
-                // ... do something with the resulting statement here.
-                counter = counter+1L;
-
-//                if(counter % 100000 == 0) db.commit();
-
-//                System.out.println(counter);
-            }
-        }
-        catch (RDF4JException e) {
-            System.err.print(e);
-        }
-        finally {
-            inputStream.close();
-        }
-
-        System.out.println("inputStream.close(): \t" + (System.currentTimeMillis()-start));
-        db.close();
-        System.out.println("finished: \t" + (System.currentTimeMillis()-start));
+        Resource context = st.getContext();
+        out.writeUTF(context != null ? NTriplesUtil.toNTriplesString(context) : "");
+        return out.toByteArray();
     }
+
+    public static Statement parseStatement(byte[] b, ValueFactory vf) {
+        ByteArrayDataInput in = ByteStreams.newDataInput(b);
+
+        Resource subj = HUtils.readResource(in.readUTF(), vf);
+        IRI pred = HUtils.readIRI(in.readUTF(), vf);
+        Value value = HUtils.readValue(in.readUTF(), vf);
+        Statement stmt;
+
+        String cS = in.readUTF();
+        if (cS.length() == 0) {
+            stmt = vf.createStatement(subj, pred, value);
+        } else {
+            Resource context = HUtils.readResource(cS, vf);
+            stmt = vf.createStatement(subj, pred, value, context);
+        }
+        return stmt;
+    }
+
 
     private static void diff() throws IOException {
         URL documentUrl = new File("Thesaurus.owl").toURI().toURL();
@@ -593,7 +486,7 @@ public class RdfExample1 {
         System.out.println("reset time: " + (postClear - preClear));
 
 
-        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com")));
+        System.out.println(Arrays.toString(loadFile(repo1,"agro.owl", "http://argo.com", RDFFormat.RDFXML)));
 
         System.out.println("init");
 

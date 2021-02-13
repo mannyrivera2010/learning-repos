@@ -117,6 +117,19 @@ public class HUtils {
         return NTriplesUtil.parseURI(new String(b, StandardCharsets.UTF_8), vf);
     }
 
+    public static Value readValue(String b, ValueFactory vf) {
+        return NTriplesUtil.parseValue(b, vf);
+    }
+
+    public static Resource readResource(String b, ValueFactory vf) {
+        return NTriplesUtil.parseResource(b, vf);
+    }
+
+    public static IRI readIRI(String b, ValueFactory vf) {
+        return NTriplesUtil.parseURI(b, vf);
+    }
+
+
     //    https://github.com/Merck/Halyard/blob/master/common/src/main/java/com/msd/gin/halyard/common/HalyardTableUtils.java
     public static Statement parseStatement(byte[] b, ValueFactory vf) {
         ByteBuffer bb = ByteBuffer.wrap(b);
@@ -143,19 +156,4 @@ public class HUtils {
         return stmt;
     }
 
-    public static class ByteUtils {
-        private static ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-
-        public static byte[] longToBytes(long x) {
-            buffer.putLong(0, x);
-            return buffer.array();
-        }
-
-        public static long bytesToLong(byte[] bytes) {
-            buffer.rewind(); //
-            buffer.put(bytes, 0, bytes.length);
-            buffer.flip();//need flip
-            return buffer.getLong();
-        }
-    }
 }

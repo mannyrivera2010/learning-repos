@@ -1,0 +1,92 @@
+@prefix family: <http://earasoft.com/family/0.1/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://earasoft.com/dataset1/person/m00> a foaf:Person ;
+    family:isFather <http://earasoft.com/dataset1/family/f00> ;
+    foaf:name "Christos Bates" .
+
+<http://earasoft.com/dataset1/person/m01> a foaf:Person ;
+    family:isFather <http://earasoft.com/dataset1/family/f40> ;
+    family:isSon <http://earasoft.com/dataset1/family/f00> ;
+    foaf:name "David Smith" .
+
+<http://earasoft.com/dataset1/person/m10> a foaf:Person ;
+    family:isFather <http://earasoft.com/dataset1/family/f10> ;
+    foaf:name "Conner Watkins" .
+
+<http://earasoft.com/dataset1/person/m20> a foaf:Person ;
+    family:isFather <http://earasoft.com/dataset1/family/f20> ;
+    foaf:name "Conan Mendez" .
+
+<http://earasoft.com/dataset1/person/m21> a foaf:Person ;
+    family:isSon <http://earasoft.com/dataset1/family/f20> ;
+    foaf:name "Kayne House" .
+
+<http://earasoft.com/dataset1/person/m30> a foaf:Person ;
+    family:isFather <http://earasoft.com/dataset1/family/f30> ;
+    foaf:name "Darien Murphy" .
+
+<http://earasoft.com/dataset1/person/m501> a foaf:Person ;
+    family:isSon <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Clinton Yates" .
+
+<http://earasoft.com/dataset1/person/m502> a foaf:Person ;
+    family:isSon <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Allan Montes" .
+
+<http://earasoft.com/dataset1/person/m503> a foaf:Person ;
+    family:isSon <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Campbell Rhodes" .
+
+<http://earasoft.com/dataset1/person/w00> a foaf:Person ;
+    family:isMother <http://earasoft.com/dataset1/family/f00> ;
+    foaf:name "Rebecca Berger" .
+
+<http://earasoft.com/dataset1/person/w10> a foaf:Person ;
+    family:isMother <http://earasoft.com/dataset1/family/f10> ;
+    foaf:name "Kelise Beck" .
+
+<http://earasoft.com/dataset1/person/w11> a foaf:Person ;
+    family:isDaugther <http://earasoft.com/dataset1/family/f10> ;
+    family:isMother <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Donna Fales" .
+
+<http://earasoft.com/dataset1/person/w20> a foaf:Person ;
+    family:isMother <http://earasoft.com/dataset1/family/f20> ;
+    foaf:name "Katrina Hartley" .
+
+<http://earasoft.com/dataset1/person/w30> a foaf:Person ;
+    family:isMother <http://earasoft.com/dataset1/family/f30> ;
+    foaf:name "Susan Schneider" .
+
+<http://earasoft.com/dataset1/person/w31> a foaf:Person ;
+    family:isDaugther <http://earasoft.com/dataset1/family/f30> ;
+    foaf:name "Emmy Bannister" .
+
+<http://earasoft.com/dataset1/person/w501> a foaf:Person ;
+    family:isDaugther <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Jamie Lee Woodley" .
+
+<http://earasoft.com/dataset1/person/w502> a foaf:Person ;
+    family:isDaugther <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Bayley Fletcher" .
+
+<http://earasoft.com/dataset1/person/w503> a foaf:Person ;
+    family:isDaugther <http://earasoft.com/dataset1/family/f40> ;
+    foaf:name "Milla Haigh" .
+
+<http://earasoft.com/dataset1/family/f00> a family:Family .
+
+<http://earasoft.com/dataset1/family/f10> a family:Family .
+
+<http://earasoft.com/dataset1/family/f20> a family:Family .
+
+<http://earasoft.com/dataset1/family/f30> a family:Family .
+
+<http://earasoft.com/dataset1/family/f40> a family:Family .
+
+
