@@ -170,7 +170,7 @@ public final class NativeSailSink implements SailSink {
 
             for (Resource context : contexts) {
 
-                byte[] value = HUtils.toKeyValues(subj, pred, obj, context);
+                byte[] value = HUtils.toKeyValues(subj, pred, obj, explicit, context);
                 byte[] key = HUtils.hashKey(value);
                 RockDbUtils.setKeyRockDbBytes(nativeSailStore.rockDbHolding, key, value, "default");
 

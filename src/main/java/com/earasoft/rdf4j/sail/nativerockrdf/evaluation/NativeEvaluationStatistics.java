@@ -44,7 +44,7 @@ public class NativeEvaluationStatistics extends EvaluationStatistics {
 		return new NativeCardinalityCalculator(this);
 	}
 
-	private double cardinality(Resource subj, IRI pred, Value obj, Resource context) throws IOException {
+	public double cardinality(Resource subj, IRI pred, Value obj, Resource context) throws IOException {
 		int subjID = NativeValue.UNKNOWN_ID;
 		if (subj != null) {
 			subjID = valueStore.getID(subj);
@@ -80,7 +80,11 @@ public class NativeEvaluationStatistics extends EvaluationStatistics {
 		return tripleStore.cardinality(subjID, predID, objID, contextID);
 	}
 
-	static class NativeCardinalityCalculator extends CardinalityCalculator {
+	/*-----------------------------------*
+	 * Inner class CardinalityCalculator *
+	 *-----------------------------------*/
+
+	protected static class NativeCardinalityCalculator extends CardinalityCalculator {
 
 		private final NativeEvaluationStatistics nativeEvaluationStatistics;
 
@@ -111,8 +115,8 @@ public class NativeEvaluationStatistics extends EvaluationStatistics {
 				}
 				return nativeEvaluationStatistics.cardinality((Resource) subj, (IRI) pred, obj, (Resource) context);
 			} catch (IOException e) {
-				nativeEvaluationStatistics.log.error("Failed to estimate statement pattern cardinality, falling back to generic implementation",
-						e);
+	//            nativeEvaluationStatistics.log.error("Failed to estimate statement pattern cardinality, falling back to generic implementation",
+	//                    e);
 				return super.getCardinality(sp);
 			}
 		}

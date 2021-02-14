@@ -178,6 +178,11 @@ public class NativeSailStore implements SailStore {
 		return contextIDs;
 	}
 
+	/**
+	 * not used TODO figure out where this is being used or needed
+	 * @return
+	 * @throws IOException
+	 */
 	CloseableIteration<Resource, SailException> getContexts() throws IOException {
 		RecordIterator btreeIter = tripleStore.getAllTriplesSortedByContext(false);
 		CloseableIteration<? extends Statement, SailException> stIter1;
@@ -214,8 +219,8 @@ public class NativeSailStore implements SailStore {
 	 *                 no contexts are supplied the method operates on the entire repository.
 	 * @return A StatementIterator that can be used to iterate over the statements that match the specified pattern.
 	 */
-	public CloseableIteration<? extends Statement, SailException> createStatementIterator(Resource subj, IRI pred, Value obj,
-																				   boolean explicit, Resource... contexts) throws IOException {
+	public CloseableIteration<? extends Statement, SailException> createStatementIterator(
+			Resource subj, IRI pred, Value obj, boolean explicit, Resource... contexts) throws IOException {
 		int subjID = NativeValue.UNKNOWN_ID;
 		if (subj != null) {
 			subjID = valueStore.getID(subj);
@@ -272,42 +277,5 @@ public class NativeSailStore implements SailStore {
 			return new UnionIteration<>(perContextIterList);
 		}
 	}
-
-	double cardinality(Resource subj, IRI pred, Value obj, Resource context) throws IOException {
-		int subjID = NativeValue.UNKNOWN_ID;
-		if (subj != null) {
-			subjID = valueStore.getID(subj);
-			if (subjID == NativeValue.UNKNOWN_ID) {
-				return 0;
-			}
-		}
-
-		int predID = NativeValue.UNKNOWN_ID;
-		if (pred != null) {
-			predID = valueStore.getID(pred);
-			if (predID == NativeValue.UNKNOWN_ID) {
-				return 0;
-			}
-		}
-
-		int objID = NativeValue.UNKNOWN_ID;
-		if (obj != null) {
-			objID = valueStore.getID(obj);
-			if (objID == NativeValue.UNKNOWN_ID) {
-				return 0;
-			}
-		}
-
-		int contextID = NativeValue.UNKNOWN_ID;
-		if (context != null) {
-			contextID = valueStore.getID(context);
-			if (contextID == NativeValue.UNKNOWN_ID) {
-				return 0;
-			}
-		}
-
-		return tripleStore.cardinality(subjID, predID, objID, contextID);
-	}
-
 
 }

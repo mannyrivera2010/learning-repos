@@ -66,10 +66,10 @@ public class HUtils {
 //     * @return array of KeyValues
 //     */
     public static byte[] toKeyValues(Statement s) {
-        return toKeyValues(s.getSubject(), s.getPredicate(), s.getObject(), s.getContext());
+        return toKeyValues(s.getSubject(), s.getPredicate(), s.getObject(), true, s.getContext());
     }
 
-    public static byte[] toKeyValues(Resource subj, IRI pred, Value obj, Resource context) {
+    public static byte[] toKeyValues(Resource subj, IRI pred, Value obj, Boolean explicit, Resource context) {
         byte[] sb = writeBytes(subj); // subject bytes
         byte[] pb = writeBytes(pred); // predicate bytes
         byte[] ob = writeBytes(obj); // object bytes

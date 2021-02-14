@@ -37,25 +37,32 @@ public class ContextStore implements Iterable<Resource> {
 
     private final NativeSailStore store;
 
+    public static class ContextCfSerializer{
+
+        public static Resource fromBytesKey(ValueFactory valueFactory, byte[] keyBytes) {
+            ByteArrayDataInput keyBuffer = ByteStreams.newDataInput(keyBytes);
+            String contextId = keyBuffer.readUTF();
+            boolean isIRI = keyBuffer.readBoolean();
+
+            if (isIRI) {
+                return valueFactory.createIRI(contextId);
+            } else
+                return valueFactory.createBNode(contextId); // why would context be a blank node
+        }
+
+        public static byte[] toBytesKey(Resource context) {
+            ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
+            keyBuffer.writeUTF(context.stringValue());
+            keyBuffer.writeBoolean(context instanceof IRI);
+            byte[] keyBufferBytes =  keyBuffer.toByteArray();
+            return keyBufferBytes;
+        }
+    }
+
     public ContextStore(NativeSailStore store) throws IOException {
         Objects.requireNonNull(store);
-
-//        this.file = new File(dataDir, FILE_NAME);
         this.valueFactory = store.getValueFactory();
         this.store = store;
-
-
-//        contextInfoMap = new HashMap<>(16);
-
-//        try {
-//            readContextsFromFile();
-//        } catch (IOException e) {
-//            logger.info("could not read context index: " + e.getMessage(), e);
-//            logger.debug("attempting reconstruction from store (this may take a while)");
-//            initializeContextCache();
-//            writeContextsToFile();
-//            logger.info("context index reconstruction complete");
-//        }
     }
 
     /**
@@ -63,37 +70,34 @@ public class ContextStore implements Iterable<Resource> {
      *
      * @param context the context identifier.
      */
-    void increment(Resource context) {
-//        contextInfoMap.merge(context, 1L, (size, one) -> size + one);
+    public void increment(Resource context) {
+        // contextInfoMap.merge(context, 1L, (size, one) -> size + one);
         incrementRockerDb(context);
         contentsChanged = true;
     }
 
     /**
      * implemented as get -> modify -> set
-     *
+     * should be sync?
      * @param context
      */
     public void incrementRockerDb(Resource context) {
         ColumnFamilyHandle cfHandle = store.rockDbHolding.cfHandlesMap.get(RockDbHolding.CONTEXTS_CF);
 
-        ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
-        keyBuffer.writeUTF(context.stringValue());
-        keyBuffer.writeBoolean(context instanceof IRI);
-
+        byte[] keyBytes = ContextCfSerializer.toBytesKey(context);
         try {
             Long counterValue = 0L;
 
 //            // GET
             //                counterValue = byteAToLong(value);
-            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBuffer.toByteArray());
+            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBytes);
             if(value != null){
                 counterValue = Longs.fromByteArray(value);
             }
 //           // modify
             counterValue = counterValue + 1;
 //            // set
-            store.rockDbHolding.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
+            store.rockDbHolding.rocksDB.put(cfHandle, keyBytes, Longs.toByteArray(counterValue));
 
 //            store.rocksDB.merge(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(1));
 
@@ -102,9 +106,6 @@ public class ContextStore implements Iterable<Resource> {
             e.printStackTrace();
         }
     }
-
-
-
 
     /**
      * Decrease the size of the context by the given amount. If the size reaches zero, the context is removed.
@@ -121,13 +122,10 @@ public class ContextStore implements Iterable<Resource> {
     public void decrementBytRockerDb(Resource context, long amount){
         ColumnFamilyHandle cfHandle = store.rockDbHolding.cfHandlesMap.get(RockDbHolding.CONTEXTS_CF);
 
-        ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
-        keyBuffer.writeUTF(context.stringValue());
-        keyBuffer.writeBoolean(context instanceof IRI);
-
+        byte[] keyBufferBytes = ContextCfSerializer.toBytesKey(context);
         try {
             // GET
-            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBuffer.toByteArray());
+            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBufferBytes);
             Long counterValue = 1L;
             if(value != null){
                 counterValue = Longs.fromByteArray(value);
@@ -135,7 +133,7 @@ public class ContextStore implements Iterable<Resource> {
             // modify
             counterValue = counterValue - amount;
             // set
-            store.rockDbHolding.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
+            store.rockDbHolding.rocksDB.put(cfHandle, keyBufferBytes, Longs.toByteArray(counterValue));
         } catch (RocksDBException e) {
             e.printStackTrace();
         }
@@ -147,14 +145,8 @@ public class ContextStore implements Iterable<Resource> {
                 this.store.rockDbHolding,
                 RockDbHolding.CONTEXTS_CF,
                 iteratorEntry -> {
-                    ByteArrayDataInput keyBuffer = ByteStreams.newDataInput(iteratorEntry.keyBytes);
-
-                    String contextId = keyBuffer.readUTF();
-                    boolean isIRI = keyBuffer.readBoolean();
-
-//                    System.out.println(byteAToLong(iteratorEntry.valueBytes));
-                    Resource context = isIRI ? valueFactory.createIRI(contextId)
-                            : valueFactory.createBNode(contextId);
+                    byte[] keyBytes = iteratorEntry.keyBytes;
+                    Resource context = ContextCfSerializer.fromBytesKey(valueFactory, keyBytes);
                     return context;
                 }
         );
@@ -168,7 +160,8 @@ public class ContextStore implements Iterable<Resource> {
         contentsChanged = true;
     }
 
-   public void close() {
+    public void close() {
+
     }
 
     public void sync() throws IOException {
@@ -176,6 +169,10 @@ public class ContextStore implements Iterable<Resource> {
             // Should rockDb do something
             contentsChanged = false;
         }
+    }
+
+    public static void main(String[] args) {
+
     }
 
 }
