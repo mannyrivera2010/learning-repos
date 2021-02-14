@@ -1,6 +1,7 @@
 package com.earasoft.rdf4j.sail.nativerockrdf.zstore;
 
 import com.earasoft.rdf4j.sail.nativerockrdf.NativeSailStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbHolding;
 import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbUtils;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
@@ -43,6 +44,7 @@ public class ContextStore implements Iterable<Resource> {
         this.valueFactory = store.getValueFactory();
         this.store = store;
 
+
 //        contextInfoMap = new HashMap<>(16);
 
 //        try {
@@ -73,7 +75,7 @@ public class ContextStore implements Iterable<Resource> {
      * @param context
      */
     public void incrementRockerDb(Resource context) {
-        ColumnFamilyHandle cfHandle = store.cfHandlesMap.get(store.CONTEXTS_CF);
+        ColumnFamilyHandle cfHandle = store.rockDbHolding.cfHandlesMap.get(RockDbHolding.CONTEXTS_CF);
 
         ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
         keyBuffer.writeUTF(context.stringValue());
@@ -84,14 +86,14 @@ public class ContextStore implements Iterable<Resource> {
 
 //            // GET
             //                counterValue = byteAToLong(value);
-            byte[] value = store.rocksDB.get(cfHandle, keyBuffer.toByteArray());
+            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBuffer.toByteArray());
             if(value != null){
                 counterValue = Longs.fromByteArray(value);
             }
 //           // modify
             counterValue = counterValue + 1;
 //            // set
-            store.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
+            store.rockDbHolding.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
 
 //            store.rocksDB.merge(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(1));
 
@@ -117,7 +119,7 @@ public class ContextStore implements Iterable<Resource> {
     }
 
     public void decrementBytRockerDb(Resource context, long amount){
-        ColumnFamilyHandle cfHandle = store.cfHandlesMap.get(store.CONTEXTS_CF);
+        ColumnFamilyHandle cfHandle = store.rockDbHolding.cfHandlesMap.get(RockDbHolding.CONTEXTS_CF);
 
         ByteArrayDataOutput keyBuffer = ByteStreams.newDataOutput();
         keyBuffer.writeUTF(context.stringValue());
@@ -125,7 +127,7 @@ public class ContextStore implements Iterable<Resource> {
 
         try {
             // GET
-            byte[] value = store.rocksDB.get(cfHandle, keyBuffer.toByteArray());
+            byte[] value = store.rockDbHolding.rocksDB.get(cfHandle, keyBuffer.toByteArray());
             Long counterValue = 1L;
             if(value != null){
                 counterValue = Longs.fromByteArray(value);
@@ -133,7 +135,7 @@ public class ContextStore implements Iterable<Resource> {
             // modify
             counterValue = counterValue - amount;
             // set
-            store.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
+            store.rockDbHolding.rocksDB.put(cfHandle, keyBuffer.toByteArray(), Longs.toByteArray(counterValue));
         } catch (RocksDBException e) {
             e.printStackTrace();
         }
@@ -142,9 +144,8 @@ public class ContextStore implements Iterable<Resource> {
     @Override
     public Iterator<Resource> iterator() {
         return RockDbUtils.createRocksRegIteratorForCFColumn(
-                store.cfHandlesMap,
-                store.rocksDB,
-                store.CONTEXTS_CF,
+                this.store.rockDbHolding,
+                RockDbHolding.CONTEXTS_CF,
                 iteratorEntry -> {
                     ByteArrayDataInput keyBuffer = ByteStreams.newDataInput(iteratorEntry.keyBytes);
 
@@ -161,10 +162,8 @@ public class ContextStore implements Iterable<Resource> {
 
     public void clear() {
         RockDbUtils.recreateCfRockDb(
-                this.store.cfHandlesMap,
-                this.store.cfOpts,
-                this.store.rocksDB,
-                NativeSailStore.CONTEXTS_CF
+                this.store.rockDbHolding,
+                RockDbHolding.CONTEXTS_CF
         );
         contentsChanged = true;
     }

@@ -318,7 +318,7 @@ public class ValueStore extends AbstractValueFactory {
 		int id = dataStore.storeData(valueData);
 //		ByteArrayDataOutput idBuffer = new ByteStreams.newDataOutput();
 
-		ColumnFamilyHandle columnFamilyHandle = this.nativeSailStore.cfHandles.get(0);
+		ColumnFamilyHandle columnFamilyHandle = this.nativeSailStore.rockDbHolding.cfHandles.get(0);
 //		this.nativeSailStore.rocksDB.put(columnFamilyHandle,  );
 
 		NativeValue nv = isOwnValue ? (NativeValue) value : getNativeValue(value);

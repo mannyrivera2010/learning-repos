@@ -35,7 +35,6 @@ import org.eclipse.rdf4j.common.io.ByteArrayUtil;
 import org.eclipse.rdf4j.sail.SailException;
 import  com.earasoft.rdf4j.sail.nativerockrdf.TxnStatusFile.TxnStatus;
 import  com.earasoft.rdf4j.sail.nativerockrdf.btree.BTree;
-import  com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordComparator;
 import  com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,7 +132,7 @@ public class TripleStore implements Closeable {
 	/**
 	 * The directory that is used to store the index files.
 	 */
-	private final File dir;
+	public final File dir;
 
 	/**
 	 * Object containing meta-data for the triple store. This includes
@@ -145,7 +144,7 @@ public class TripleStore implements Closeable {
 	 */
 	private final List<TripleIndex> indexes = new ArrayList<>();
 
-	private final boolean forceSync;
+	public final boolean forceSync;
 
 	private final TxnStatusFile txnStatusFile;
 
@@ -287,7 +286,7 @@ public class TripleStore implements Closeable {
 	private void initIndexes(Set<String> indexSpecs) throws IOException {
 		for (String fieldSeq : indexSpecs) {
 			logger.trace("Initializing index '{}'...", fieldSeq);
-			indexes.add(new TripleIndex(fieldSeq));
+			indexes.add(new TripleIndex(this, fieldSeq));
 		}
 	}
 
@@ -353,7 +352,7 @@ public class TripleStore implements Closeable {
 			for (String fieldSeq : addedIndexSpecs) {
 				logger.debug("Initializing new index '{}'...", fieldSeq);
 
-				TripleIndex addedIndex = new TripleIndex(fieldSeq);
+				TripleIndex addedIndex = new TripleIndex(this, fieldSeq);
 				BTree addedBTree = null;
 				RecordIterator sourceIter = null;
 				try {
@@ -513,80 +512,6 @@ public class TripleStore implements Closeable {
 	/*-------------------------------------*
 	 * Inner class ExplicitStatementFilter *
 	 *-------------------------------------*/
-
-	private static class ExplicitStatementFilter implements RecordIterator {
-
-		private final RecordIterator wrappedIter;
-
-		public ExplicitStatementFilter(RecordIterator wrappedIter) {
-			this.wrappedIter = wrappedIter;
-		}
-
-		@Override
-		public byte[] next() throws IOException {
-			byte[] result;
-
-			while ((result = wrappedIter.next()) != null) {
-				byte flags = result[TripleStore.FLAG_IDX];
-				boolean explicit = (flags & TripleStore.EXPLICIT_FLAG) != 0;
-				boolean toggled = (flags & TripleStore.TOGGLE_EXPLICIT_FLAG) != 0;
-
-				if (explicit != toggled) {
-					// Statement is either explicit and hasn't been toggled, or vice
-					// versa
-					break;
-				}
-			}
-
-			return result;
-		}
-
-		@Override
-		public void set(byte[] value) throws IOException {
-			wrappedIter.set(value);
-		}
-
-		@Override
-		public void close() throws IOException {
-			wrappedIter.close();
-		}
-	} // end inner class ExplicitStatementFilter
-
-	private static class ImplicitStatementFilter implements RecordIterator {
-
-		private final RecordIterator wrappedIter;
-
-		public ImplicitStatementFilter(RecordIterator wrappedIter) {
-			this.wrappedIter = wrappedIter;
-		}
-
-		@Override
-		public byte[] next() throws IOException {
-			byte[] result;
-
-			while ((result = wrappedIter.next()) != null) {
-				byte flags = result[TripleStore.FLAG_IDX];
-				boolean explicit = (flags & TripleStore.EXPLICIT_FLAG) != 0;
-
-				if (!explicit) {
-					// Statement is implicit
-					break;
-				}
-			}
-
-			return result;
-		}
-
-		@Override
-		public void set(byte[] value) throws IOException {
-			wrappedIter.set(value);
-		}
-
-		@Override
-		public void close() throws IOException {
-			wrappedIter.close();
-		}
-	} // end inner class ImplicitStatementFilter
 
 	private RecordIterator getTriples(int subj, int pred, int obj, int context, int flags, int flagsMask)
 			throws IOException {
@@ -1096,133 +1021,8 @@ public class TripleStore implements Closeable {
 	 * Inner class TripleIndex *
 	 *-------------------------*/
 
-	private class TripleIndex {
-
-		private final TripleComparator tripleComparator;
-
-		private final BTree btree;
-
-		public TripleIndex(String fieldSeq) throws IOException {
-			tripleComparator = new TripleComparator(fieldSeq);
-			btree = new BTree(dir, getFilenamePrefix(fieldSeq), 2048, RECORD_LENGTH, tripleComparator, forceSync);
-		}
-
-		private String getFilenamePrefix(String fieldSeq) {
-			return "triples-" + fieldSeq;
-		}
-
-		public char[] getFieldSeq() {
-			return tripleComparator.getFieldSeq();
-		}
-
-		public BTree getBTree() {
-			return btree;
-		}
-
-		/**
-		 * Determines the 'score' of this index on the supplied pattern of subject, predicate, object and context IDs.
-		 * The higher the score, the better the index is suited for matching the pattern. Lowest score is 0, which means
-		 * that the index will perform a sequential scan.
-		 */
-		public int getPatternScore(int subj, int pred, int obj, int context) {
-			int score = 0;
-
-			for (char field : tripleComparator.getFieldSeq()) {
-				switch (field) {
-				case 's':
-					if (subj >= 0) {
-						score++;
-					} else {
-						return score;
-					}
-					break;
-				case 'p':
-					if (pred >= 0) {
-						score++;
-					} else {
-						return score;
-					}
-					break;
-				case 'o':
-					if (obj >= 0) {
-						score++;
-					} else {
-						return score;
-					}
-					break;
-				case 'c':
-					if (context >= 0) {
-						score++;
-					} else {
-						return score;
-					}
-					break;
-				default:
-					throw new RuntimeException("invalid character '" + field + "' in field sequence: "
-							+ new String(tripleComparator.getFieldSeq()));
-				}
-			}
-
-			return score;
-		}
-
-		@Override
-		public String toString() {
-			return new String(getFieldSeq());
-		}
-	}
-
 	/*------------------------------*
 	 * Inner class TripleComparator *
 	 *------------------------------*/
 
-	/**
-	 * A RecordComparator that can be used to create indexes with a configurable order of the subject, predicate, object
-	 * and context fields.
-	 */
-	private static class TripleComparator implements RecordComparator {
-
-		private final char[] fieldSeq;
-
-		public TripleComparator(String fieldSeq) {
-			this.fieldSeq = fieldSeq.toCharArray();
-		}
-
-		public char[] getFieldSeq() {
-			return fieldSeq;
-		}
-
-		@Override
-		public final int compareBTreeValues(byte[] key, byte[] data, int offset, int length) {
-			for (char field : fieldSeq) {
-				int fieldIdx = 0;
-
-				switch (field) {
-				case 's':
-					fieldIdx = SUBJ_IDX;
-					break;
-				case 'p':
-					fieldIdx = PRED_IDX;
-					break;
-				case 'o':
-					fieldIdx = OBJ_IDX;
-					break;
-				case 'c':
-					fieldIdx = CONTEXT_IDX;
-					break;
-				default:
-					throw new IllegalArgumentException(
-							"invalid character '" + field + "' in field sequence: " + new String(fieldSeq));
-				}
-
-				int diff = ByteArrayUtil.compareRegion(key, fieldIdx, data, offset + fieldIdx, 4);
-
-				if (diff != 0) {
-					return diff;
-				}
-			}
-
-			return 0;
-		}
-	}
 }

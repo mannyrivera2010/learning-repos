@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf.eval;
+package com.earasoft.rdf4j.sail.nativerockrdf.evaluation;
 
 import java.io.IOException;
 
@@ -40,6 +40,7 @@ public class NativeEvaluationStatistics extends EvaluationStatistics {
 
 	@Override
 	protected CardinalityCalculator createCardinalityCalculator() {
+		// QueryJoinOptimizer - A query optimizer that re-orders nested Joins.
 		return new NativeCardinalityCalculator(this);
 	}
 

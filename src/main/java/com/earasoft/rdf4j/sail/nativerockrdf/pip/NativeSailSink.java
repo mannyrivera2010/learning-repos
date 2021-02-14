@@ -1,6 +1,7 @@
 package com.earasoft.rdf4j.sail.nativerockrdf.pip;
 
 import com.earasoft.rdf4j.sail.nativerockrdf.NativeSailStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbHolding;
 import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbUtils;
 import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeValue;
 import com.earasoft.rdf4j.utils.HUtils;
@@ -75,9 +76,11 @@ public final class NativeSailSink implements SailSink {
         nativeSailStore.sinkStoreAccessLock.lock();
         try {
             startTriplestoreTransaction();
-//				namespaceStore.setNamespace(prefix, name);
-
-            RockDbUtils.setKeyRockDb(nativeSailStore.cfHandlesMap, nativeSailStore.rocksDB, prefix, name, NativeSailStore.NAMESPACES_CF);
+            RockDbUtils.setKeyRockDb(
+                    nativeSailStore.rockDbHolding,
+                    prefix,
+                    name,
+                    RockDbHolding.NAMESPACES_CF);
         } finally {
             nativeSailStore.sinkStoreAccessLock.unlock();
         }
@@ -88,24 +91,24 @@ public final class NativeSailSink implements SailSink {
         nativeSailStore.sinkStoreAccessLock.lock();
         try {
             startTriplestoreTransaction();
-//				namespaceStore.removeNamespace(prefix);
-
-            RockDbUtils.deleteKeyRockDb(nativeSailStore.cfHandlesMap, nativeSailStore.rocksDB, prefix, NativeSailStore.NAMESPACES_CF);
+            RockDbUtils.deleteKeyRockDb(
+                    nativeSailStore.rockDbHolding,
+                    prefix,
+                    RockDbHolding.NAMESPACES_CF);
         } finally {
             nativeSailStore.sinkStoreAccessLock.unlock();
         }
     }
-
 
     @Override
     public void clearNamespaces() throws SailException {
         nativeSailStore.sinkStoreAccessLock.lock();
         try {
             startTriplestoreTransaction();
-//				namespaceStore.clear();
-            RockDbUtils.recreateCfRockDb(nativeSailStore.cfHandlesMap,
-                    nativeSailStore.cfOpts,
-                    nativeSailStore.rocksDB, NativeSailStore.NAMESPACES_CF);
+            RockDbUtils.recreateCfRockDb(
+                    nativeSailStore.rockDbHolding,
+                    RockDbHolding.NAMESPACES_CF
+            );
         } finally {
             nativeSailStore.sinkStoreAccessLock.unlock();
         }
@@ -169,7 +172,7 @@ public final class NativeSailSink implements SailSink {
 
                 byte[] value = HUtils.toKeyValues(subj, pred, obj, context);
                 byte[] key = HUtils.hashKey(value);
-                RockDbUtils.setKeyRockDbBytes(nativeSailStore.cfHandlesMap, nativeSailStore.rocksDB, key, value, "default");
+                RockDbUtils.setKeyRockDbBytes(nativeSailStore.rockDbHolding, key, value, "default");
 
 //					int contextID = 0;
 //					if (context != null) {

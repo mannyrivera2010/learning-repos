@@ -12,10 +12,11 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.earasoft.rdf4j.sail.nativerockrdf.eval.NativeEvaluationStatistics;
+import com.earasoft.rdf4j.sail.nativerockrdf.evaluation.NativeEvaluationStatistics;
 import com.earasoft.rdf4j.sail.nativerockrdf.pip.NativeSailSink;
 import com.earasoft.rdf4j.sail.nativerockrdf.pip.NativeSailSource;
 import com.earasoft.rdf4j.sail.nativerockrdf.pip.NativeStatementIterator;
+import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbHolding;
 import com.earasoft.rdf4j.sail.nativerockrdf.zstore.ContextStore;
 import com.earasoft.rdf4j.sail.nativerockrdf.zstore.TripleStore;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
@@ -57,6 +58,7 @@ public class NativeSailStore implements SailStore {
 //	private final NamespaceStore namespaceStore;
 
 	public final ContextStore contextStore;
+	public final RockDbHolding rockDbHolding;
 
 	/**
 	 * A lock to control concurrent access by {@link NativeSailSink} to the TripleStore, ValueStore, and NamespaceStore.
@@ -78,21 +80,7 @@ public class NativeSailStore implements SailStore {
 				ValueStore.NAMESPACE_CACHE_SIZE, ValueStore.NAMESPACE_ID_CACHE_SIZE);
 	}
 
-	public final CompressionOptions compressionOptions;
-	public final List cfDescriptors;
-	public final ColumnFamilyOptions cfOpts;
-	public final List<ColumnFamilyHandle> cfHandles;
-	public final DBOptions dbOptions;
-	public final RocksDB rocksDB;
-	private final SstFileManager sstFileManager;
-	public static final String NAMESPACES_CF = "namespaces_cf";
-	public static final String CONTEXTS_CF = "contexts_cf";
-	public static final String VALUE_CF = "value_cf";
-	public static final String INDEX_SPOC_CF = "index_spoc_cf";
-	public static final String INDEX_POSC_CF = "index_posc_cf";
-	public static final String INDEX_COSP_CF = "index_cosp_cf";
 
-	public Map<String, ColumnFamilyHandle> cfHandlesMap = new HashMap<>();;
 	/**
 	 * Creates a new {@link NativeSailStore}.
 	 */
@@ -100,69 +88,12 @@ public class NativeSailStore implements SailStore {
 						   int valueIDCacheSize, int namespaceCacheSize, int namespaceIDCacheSize) throws IOException, SailException {
 		boolean initialized = false;
 		try {
-//			namespaceStore = new NamespaceStore(dataDir);
 			valueStore = new ValueStore(this, dataDir, forceSync, valueCacheSize, valueIDCacheSize, namespaceCacheSize,
 					namespaceIDCacheSize);
 			tripleStore = new TripleStore(this, dataDir, tripleIndexes, forceSync);
 			contextStore = new ContextStore(this);
 
-			// rocksdb
-			https://github.com/hugegraph/hugegraph/blob/master/hugegraph-rocksdb/src/main/java/com/baidu/hugegraph/backend/store/rocksdb/RocksDBOptions.java
-			try {
-				// TODO initOptions
-				this.sstFileManager = new SstFileManager(Env.getDefault());
-
-				compressionOptions = new CompressionOptions()
-						.setEnabled(true);
-
-				cfOpts = new ColumnFamilyOptions()
-						.setOptimizeFiltersForHits(true)
-						.optimizeLevelStyleCompaction()
-						.optimizeUniversalStyleCompaction()
-						.setCompressionType(CompressionType.LZ4_COMPRESSION)
-						.setCompressionOptions(compressionOptions)
-						.setBottommostCompressionType(CompressionType.LZ4_COMPRESSION)
-						.setBottommostCompressionOptions(compressionOptions)
-//						.setMergeOperator(mergeOp)
-						.setCompressionPerLevel(Arrays.asList(CompressionType.LZ4_COMPRESSION))
-						// https://github.com/facebook/rocksdb/tree/master/utilities/merge_operators
-				       .setMergeOperatorName("uint64add"); // uint64add/stringappend
-				;
-
-				cfDescriptors = Arrays.asList(
-						// RocksDB.DEFAULT_COLUMN_FAMILY is required as first column family
-						new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)
-						// replaces namespaceStore
-						,new ColumnFamilyDescriptor(NAMESPACES_CF.getBytes(), cfOpts) // done
-						// replaces contextStore
-						,new ColumnFamilyDescriptor(CONTEXTS_CF.getBytes(), cfOpts)
-						// Replaces tripleStore
-						,new ColumnFamilyDescriptor(INDEX_SPOC_CF.getBytes(), cfOpts)
-						,new ColumnFamilyDescriptor(INDEX_POSC_CF.getBytes(), cfOpts)
-						,new ColumnFamilyDescriptor(INDEX_COSP_CF.getBytes(), cfOpts)
-				);
-				dbOptions = new DBOptions()
-						.setCreateIfMissing(true)
-						.setCreateMissingColumnFamilies(true)
-						.setAllowConcurrentMemtableWrite(true)
-						.setIncreaseParallelism(12)
-
-//                    .setAllowMmapWrites(true)
-						.setMaxSubcompactions(12);
-
-				cfHandles = new ArrayList<>();
-
-				rocksDB = RocksDB.open(this.dbOptions,
-						"data2_rocksdb",
-						cfDescriptors,
-						cfHandles);
-				for(ColumnFamilyHandle columnFamilyHandle: cfHandles){
-					this.cfHandlesMap.put(new String(columnFamilyHandle.getName()), columnFamilyHandle);
-				}
-			} catch (RocksDBException e) {
-				throw new SailException(e);
-			}
-			// end rocksdb
+			rockDbHolding = new RockDbHolding(); // starts rocksdb
 			initialized = true;
 		} finally {
 			if (!initialized) {
@@ -201,34 +132,10 @@ public class NativeSailStore implements SailStore {
 				}
 			}
 
-			// rocksdb
-			closeRockdb();
+			rockDbHolding.closeRockdb();
 		} catch (IOException e) {
 			logger.warn("Failed to close store", e);
 			throw new SailException(e);
-		}
-	}
-
-	private void closeRockdb() {
-		try{
-			compressionOptions.close();
-		}finally {
-			try{
-				cfOpts.close();
-			}finally {
-				try{
-					dbOptions.close();
-				}finally {
-					try{
-						// NOTE frees the column family handles before freeing the db
-						for (final ColumnFamilyHandle cfHandle : this.cfHandles) {
-							cfHandle.close();
-						}
-					}finally {
-						rocksDB.close();
-					}
-				}
-			}
 		}
 	}
 
@@ -237,6 +144,7 @@ public class NativeSailStore implements SailStore {
 		return new NativeEvaluationStatistics(valueStore, tripleStore);
 	}
 
+	// https://graphdb.ontotext.com/documentation/standard/query-behaviour.html#how-to-manage-explicit-and-implicit-statements
 	@Override
 	public SailSource getExplicitSailSource() {
 		return new NativeSailSource(this, true);

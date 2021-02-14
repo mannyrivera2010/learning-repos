@@ -1,6 +1,7 @@
 package com.earasoft.rdf4j.sail.nativerockrdf.pip;
 
 import com.earasoft.rdf4j.sail.nativerockrdf.NativeSailStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbHolding;
 import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbUtils;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.CloseableIteratorIteration;
@@ -34,15 +35,14 @@ public final class NativeSailDataset implements SailDataset {
 
     @Override
     public String getNamespace(String prefix) throws SailException {
-        return RockDbUtils.getKeyRockDb(nativeSailStore.cfHandlesMap, nativeSailStore.rocksDB, prefix);
+        return RockDbUtils.getKeyRockDb(nativeSailStore.rockDbHolding, prefix);
     }
 
     @Override
     public CloseableIteration<SimpleNamespace, SailException> getNamespaces() {
         return RockDbUtils.createRocksDbIteratorForCFColumn(
-                nativeSailStore.cfHandlesMap,
-                nativeSailStore.rocksDB,
-                NativeSailStore.NAMESPACES_CF,
+                nativeSailStore.rockDbHolding,
+                RockDbHolding.NAMESPACES_CF,
                 iteratorEntry -> {
                     String key = new String(iteratorEntry.keyBytes);
                     String value = new String(iteratorEntry.valueBytes);

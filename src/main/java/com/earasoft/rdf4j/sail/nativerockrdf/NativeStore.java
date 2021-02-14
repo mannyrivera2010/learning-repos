@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.model.MemoryOverflowModel;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.rdf4j.IsolationLevel;
 import org.eclipse.rdf4j.IsolationLevels;

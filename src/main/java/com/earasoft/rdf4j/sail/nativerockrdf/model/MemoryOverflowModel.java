@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.model;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author James Leigh
  */
-abstract class MemoryOverflowModel extends AbstractModel {
+public abstract class MemoryOverflowModel extends AbstractModel {
 
 	private static final long serialVersionUID = 4119844228099208169L;
 
