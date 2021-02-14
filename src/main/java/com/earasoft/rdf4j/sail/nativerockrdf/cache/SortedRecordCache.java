@@ -5,11 +5,12 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.cache;
 
 import java.io.File;
 import java.io.IOException;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.RecordCache;
 import com.earasoft.rdf4j.sail.nativerockrdf.btree.BTree;
 import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordComparator;
 import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
@@ -20,7 +21,7 @@ import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
  * 
  * @author Arjohn Kampman
  */
-final class SortedRecordCache extends RecordCache {
+public final class SortedRecordCache extends RecordCache {
 
 	/*------------*
 	 * Attributes *

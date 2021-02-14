@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.pip;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author James Leigh
  */
-class SailSourceModel extends AbstractModel {
+public class SailSourceModel extends AbstractModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(SailSourceModel.class);
 

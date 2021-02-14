@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.eclipse.rdf4j.sail.SailException;
-import com.earasoft.rdf4j.sail.nativerockrdf.ConcurrentCache;
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.ConcurrentCache;
 
 class ConcurrentNodeCache extends ConcurrentCache<Integer, Node> {
 

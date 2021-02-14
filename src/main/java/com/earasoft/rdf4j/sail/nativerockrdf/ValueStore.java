@@ -12,9 +12,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Optional;
 
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteStreams;
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.ConcurrentCache;
 import org.eclipse.rdf4j.common.concurrent.locks.Lock;
 import org.eclipse.rdf4j.common.concurrent.locks.ReadWriteLockManager;
 import org.eclipse.rdf4j.common.concurrent.locks.WritePrefReadWriteLockManager;
@@ -178,7 +176,7 @@ public class ValueStore extends AbstractValueFactory {
 	 * @return The value for the ID, or <tt>null</tt> no such value could be found.
 	 * @exception IOException If an I/O error occurred.
 	 */
-	public NativeValue getValue(int id) throws IOException {
+	public NativeValue getValue(Integer id) throws IOException {
 		// Check value cache
 		Integer cacheID = new Integer(id);
 		NativeValue resultValue = valueCache.get(cacheID);
@@ -186,6 +184,13 @@ public class ValueStore extends AbstractValueFactory {
 		if (resultValue == null) {
 			// Value not in cache, fetch it from file
 			byte[] data = dataStore.getData(id);
+
+
+//			byte[] bytes = Longs.toByteArray(id.longValue());
+//			byte[] data1 = RockDbUtils.getKeyRockDbBytes(this.nativeSailStore.cfHandlesMap,
+//					this.nativeSailStore.rocksDB,
+//					NativeSailStore.VALUE_CF);
+//			System.out.print(data1.length);
 
 			if (data != null) {
 				resultValue = data2value(id, data);

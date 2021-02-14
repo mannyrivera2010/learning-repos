@@ -5,11 +5,12 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.limited;
 
 import java.io.File;
 import java.io.IOException;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.NativeStore;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 

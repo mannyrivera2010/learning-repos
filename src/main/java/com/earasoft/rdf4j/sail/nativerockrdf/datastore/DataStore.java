@@ -198,7 +198,7 @@ public class DataStore implements Closeable {
 	 * @param data The data to calculate the hash code for.
 	 * @return A hash code for the supplied data.
 	 */
-	private int getDataHash(byte[] data) {
+	public int getDataHash(byte[] data) {
 		synchronized (crc32) {
 			crc32.update(data);
 			int crc = (int) crc32.getValue();

@@ -5,10 +5,12 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.eval;
 
 import java.io.IOException;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.ValueStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.zstore.TripleStore;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
@@ -23,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * @author Arjohn Kampman
  * @author Enrico Minack
  */
-class NativeEvaluationStatistics extends EvaluationStatistics {
+public class NativeEvaluationStatistics extends EvaluationStatistics {
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -38,43 +40,7 @@ class NativeEvaluationStatistics extends EvaluationStatistics {
 
 	@Override
 	protected CardinalityCalculator createCardinalityCalculator() {
-		return new NativeCardinalityCalculator();
-	}
-
-	protected class NativeCardinalityCalculator extends CardinalityCalculator {
-
-		@Override
-		protected double getCardinality(StatementPattern sp) {
-			try {
-				Value subj = getConstantValue(sp.getSubjectVar());
-				if (!(subj instanceof Resource)) {
-					// can happen when a previous optimizer has inlined a comparison operator.
-					// this can cause, for example, the subject variable to be equated to a literal value.
-					// See SES-970
-					subj = null;
-				}
-				Value pred = getConstantValue(sp.getPredicateVar());
-				if (!(pred instanceof IRI)) {
-					// can happen when a previous optimizer has inlined a comparison operator. See SES-970
-					pred = null;
-				}
-				Value obj = getConstantValue(sp.getObjectVar());
-				Value context = getConstantValue(sp.getContextVar());
-				if (!(context instanceof Resource)) {
-					// can happen when a previous optimizer has inlined a comparison operator. See SES-970
-					context = null;
-				}
-				return cardinality((Resource) subj, (IRI) pred, obj, (Resource) context);
-			} catch (IOException e) {
-				log.error("Failed to estimate statement pattern cardinality, falling back to generic implementation",
-						e);
-				return super.getCardinality(sp);
-			}
-		}
-
-		protected Value getConstantValue(Var var) {
-			return (var != null) ? var.getValue() : null;
-		}
+		return new NativeCardinalityCalculator(this);
 	}
 
 	private double cardinality(Resource subj, IRI pred, Value obj, Resource context) throws IOException {
@@ -111,5 +77,47 @@ class NativeEvaluationStatistics extends EvaluationStatistics {
 		}
 
 		return tripleStore.cardinality(subjID, predID, objID, contextID);
+	}
+
+	static class NativeCardinalityCalculator extends CardinalityCalculator {
+
+		private final NativeEvaluationStatistics nativeEvaluationStatistics;
+
+		public NativeCardinalityCalculator(NativeEvaluationStatistics nativeEvaluationStatistics) {
+			this.nativeEvaluationStatistics = nativeEvaluationStatistics;
+		}
+
+		@Override
+		protected double getCardinality(StatementPattern sp) {
+			try {
+				Value subj = getConstantValue(sp.getSubjectVar());
+				if (!(subj instanceof Resource)) {
+					// can happen when a previous optimizer has inlined a comparison operator.
+					// this can cause, for example, the subject variable to be equated to a literal value.
+					// See SES-970
+					subj = null;
+				}
+				Value pred = getConstantValue(sp.getPredicateVar());
+				if (!(pred instanceof IRI)) {
+					// can happen when a previous optimizer has inlined a comparison operator. See SES-970
+					pred = null;
+				}
+				Value obj = getConstantValue(sp.getObjectVar());
+				Value context = getConstantValue(sp.getContextVar());
+				if (!(context instanceof Resource)) {
+					// can happen when a previous optimizer has inlined a comparison operator. See SES-970
+					context = null;
+				}
+				return nativeEvaluationStatistics.cardinality((Resource) subj, (IRI) pred, obj, (Resource) context);
+			} catch (IOException e) {
+				nativeEvaluationStatistics.log.error("Failed to estimate statement pattern cardinality, falling back to generic implementation",
+						e);
+				return super.getCardinality(sp);
+			}
+		}
+
+		protected Value getConstantValue(Var var) {
+			return (var != null) ? var.getValue() : null;
+		}
 	}
 }

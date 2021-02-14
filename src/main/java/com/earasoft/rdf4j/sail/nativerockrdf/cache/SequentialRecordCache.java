@@ -5,13 +5,14 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.cache;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.NoSuchElementException;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.RecordCache;
 import org.eclipse.rdf4j.common.io.NioFile;
 import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
 
@@ -21,7 +22,7 @@ import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
  * 
  * @author Arjohn Kampman
  */
-final class SequentialRecordCache extends RecordCache {
+public final class SequentialRecordCache extends RecordCache {
 
 	/**
 	 * Magic number "Sequential Record Cache" to detect whether the file is actually a sequential record cache file. The

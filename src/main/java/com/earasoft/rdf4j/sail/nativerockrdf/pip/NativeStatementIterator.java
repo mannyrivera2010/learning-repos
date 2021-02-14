@@ -5,10 +5,12 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.pip;
 
 import java.io.IOException;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.zstore.TripleStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.ValueStore;
 import org.eclipse.rdf4j.common.io.ByteArrayUtil;
 import org.eclipse.rdf4j.common.iteration.LookAheadIteration;
 import org.eclipse.rdf4j.model.IRI;
@@ -22,7 +24,7 @@ import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
  * A statement iterator that wraps a RecordIterator containing statement records and translates these records to
  * {@link Statement} objects.
  */
-class NativeStatementIterator extends LookAheadIteration<Statement, SailException> {
+public class NativeStatementIterator extends LookAheadIteration<Statement, SailException> {
 
 	/*-----------*
 	 * Variables *

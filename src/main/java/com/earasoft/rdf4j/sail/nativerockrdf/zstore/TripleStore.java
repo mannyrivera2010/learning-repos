@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.zstore;
 
 import java.io.Closeable;
 import java.io.File;
@@ -25,6 +25,12 @@ import java.util.Set;
 import java.util.StringTokenizer;
 
 
+import com.earasoft.rdf4j.sail.nativerockrdf.NativeSailStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.TxnStatusFile;
+import com.earasoft.rdf4j.sail.nativerockrdf.ValueStore;
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.RecordCache;
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.SequentialRecordCache;
+import com.earasoft.rdf4j.sail.nativerockrdf.cache.SortedRecordCache;
 import org.eclipse.rdf4j.common.io.ByteArrayUtil;
 import org.eclipse.rdf4j.sail.SailException;
 import  com.earasoft.rdf4j.sail.nativerockrdf.TxnStatusFile.TxnStatus;
@@ -42,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Arjohn Kampman
  */
-class TripleStore implements Closeable {
+public class TripleStore implements Closeable {
 
 	/*-----------*
 	 * Constants *
@@ -51,22 +57,22 @@ class TripleStore implements Closeable {
 	/**
 	 * The default triple indexes.
 	 */
-	private static final String DEFAULT_INDEXES = "spoc,posc";
+	public static final String DEFAULT_INDEXES = "spoc,posc";
 
 	/**
 	 * The file name for the properties file.
 	 */
-	private static final String PROPERTIES_FILE = "triples.prop";
+	public static final String PROPERTIES_FILE = "triples.prop";
 
 	/**
 	 * The key used to store the triple store version in the properties file.
 	 */
-	private static final String VERSION_KEY = "version";
+	public static final String VERSION_KEY = "version";
 
 	/**
 	 * The key used to store the triple indexes specification that specifies which triple indexes exist.
 	 */
-	private static final String INDEXES_KEY = "triple-indexes";
+	public static final String INDEXES_KEY = "triple-indexes";
 
 	/**
 	 * The version number for the current triple store.
@@ -87,15 +93,15 @@ class TripleStore implements Closeable {
 	// byte 16: additional flag(s)
 	static final int RECORD_LENGTH = 17;
 
-	static final int SUBJ_IDX = 0;
+	public static final int SUBJ_IDX = 0;
 
-	static final int PRED_IDX = 4;
+	public static final int PRED_IDX = 4;
 
-	static final int OBJ_IDX = 8;
+	public static final int OBJ_IDX = 8;
 
-	static final int CONTEXT_IDX = 12;
+	public static final int CONTEXT_IDX = 12;
 
-	static final int FLAG_IDX = 16;
+	public static final int FLAG_IDX = 16;
 
 	/**
 	 * Bit field indicating that a statement has been explicitly added (instead of being inferred).
@@ -617,7 +623,7 @@ class TripleStore implements Closeable {
 		}
 	}
 
-	protected double cardinality(int subj, int pred, int obj, int context) throws IOException {
+	public double cardinality(int subj, int pred, int obj, int context) throws IOException {
 		TripleIndex index = getBestIndex(subj, pred, obj, context);
 		BTree btree = index.btree;
 

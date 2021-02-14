@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.pip.SailSourceModel;
 import org.eclipse.rdf4j.common.io.FileUtil;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;

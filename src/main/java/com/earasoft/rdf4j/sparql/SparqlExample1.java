@@ -35,12 +35,14 @@ public class SparqlExample1 {
 
         try (RepositoryConnection conn = repo1.getConnection()) {
             System.out.println("PreClear");
-            conn.clear();
+//            conn.clear();
             System.out.println("PostClear");
 
             RdfExample1.loadFile(repo1, "example_data/family.ttl", "http://earasoft.com/family", RDFFormat.TURTLE);
-            RdfExample1.loadFile(repo1, "example_data/family.ttl", "http://earasoft.com/family", RDFFormat.TURTLE);
-//            RdfExample1.loadFile(repo1, thesaurus, "http://thesaurus.com", RDFFormat.RDFXML);
+            RdfExample1.loadFile(repo1, "example_data/family.ttl", "http://earasoft.com/family2", RDFFormat.TURTLE);
+            RdfExample1.loadFile(repo1, "example_data/family.ttl", "http://earasoft.com/family3", RDFFormat.TURTLE);
+
+            RdfExample1.loadFile(repo1, thesaurus, "http://thesaurus.com", RDFFormat.RDFXML);
             System.out.println("LOAD");
 //            conn.clearNamespaces();
             conn.setNamespace("helo", "http://k.com");

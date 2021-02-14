@@ -1,21 +1,22 @@
-package com.earasoft.rdf4j.sail.nativerockrdf;
+package com.earasoft.rdf4j.sail.nativerockrdf.rockdb;
 
+import com.earasoft.rdf4j.sail.nativerockrdf.rockdb.RockDbIteratorEntry;
 import org.eclipse.rdf4j.common.iteration.CloseableIteratorIteration;
-import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.model.impl.SimpleNamespace;
 import org.eclipse.rdf4j.sail.SailException;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 
-import java.util.Iterator;
+import java.util.function.Function;
 
-public class RocksWrapperIterator extends CloseableIteratorIteration<SimpleNamespace, SailException> {
-    RocksIterator innerRocksIterator;
+public class RockDbWrapperIterator<S> extends CloseableIteratorIteration<S, SailException> {
+    final RocksIterator innerRocksIterator;
     boolean seek = false;
-    RocksWrapperIterator(ColumnFamilyHandle columnFamilyHandle, RocksDB rocksDB) {
-        this.innerRocksIterator = rocksDB.newIterator(columnFamilyHandle);
+    final Function<RockDbIteratorEntry, S> func;
 
+    RockDbWrapperIterator(ColumnFamilyHandle columnFamilyHandle, RocksDB rocksDB, Function<RockDbIteratorEntry, S> func) {
+        this.innerRocksIterator = rocksDB.newIterator(columnFamilyHandle);
+        this.func = func;
     }
 
     @Override
@@ -28,10 +29,11 @@ public class RocksWrapperIterator extends CloseableIteratorIteration<SimpleNames
     }
 
     @Override
-    public SimpleNamespace next() {
-        String key = new String(innerRocksIterator.key());
-        String value = new String(innerRocksIterator.value());
-        SimpleNamespace ns = new SimpleNamespace(key, value);
+    public S next() {
+        byte[] keyBytes = innerRocksIterator.key();
+        byte[] valueBytes = innerRocksIterator.value();
+
+        S ns = this.func.apply(new RockDbIteratorEntry(keyBytes, valueBytes));
 
         innerRocksIterator.next();
         return ns;
@@ -39,9 +41,9 @@ public class RocksWrapperIterator extends CloseableIteratorIteration<SimpleNames
 
     public void handleClose(){
         if (this.innerRocksIterator.isOwningHandle()) {
-            System.out.println("isOwningHandle");
             this.innerRocksIterator.close();
         }
+
     }
 
 //    @Override

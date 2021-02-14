@@ -62,6 +62,56 @@ public class RdfExample1 {
         MAPDB_STORE
     }
 
+
+    public static void main(String[] args) throws IOException {
+        long start = System.currentTimeMillis();
+
+        int[] settings = {0, 1, 0};
+
+        int times = 1;
+
+        for(int i = 1; i<=times; i++) {
+            System.out.println(i);
+
+            String pathname = "temp_data/Thesaurus.owl";
+//            pathname = "example_data/agro.owl";
+
+            if(settings[0] == 1){
+                MapDbTesting.mapDbTesting(start, true, false, "file.db", pathname, RDFFormat.RDFXML);
+            }
+
+            if(settings[1] == 1){
+                // [1, 31301, 206416]
+                // [0, 45859, 330022]
+                // [0, 30292, 209857]
+                // [29, 31511, 167648]
+                // [40, 45257, 312164] 1
+                // [36, 42486, 266519] 2
+                // [34, 43440, 249619] 3
+
+                rdfj4Testing(start, true, false, false, false, pathname);
+            }
+
+            if(settings[2] == 1){
+                long rockdbTesting = System.currentTimeMillis();
+                // rockdbTesting	end	67320
+                // rockdbTesting	end	223412 , 4 writes
+                // 148542
+
+                // 202408 Laptop 1st
+                // 190614 Laptop 2st
+                rockdbTesting(start,true, true, pathname, RDFFormat.RDFXML);
+
+                System.out.println(String.format("rockdbTesting\tend\t%s",
+                        (System.currentTimeMillis() - rockdbTesting)));
+
+            }
+
+
+        }
+
+    }
+
     public static final String FILE_DB = "file.db";
     private static String g = "http://testgraph.com/";
     private static String g1 = "http://testgraph.com/1";
@@ -152,54 +202,6 @@ public class RdfExample1 {
     }
 
 
-    public static void main(String[] args) throws IOException {
-        long start = System.currentTimeMillis();
-
-        int[] settings = {0, 0, 1};
-
-        int times = 1;
-
-        for(int i = 1; i<=times; i++) {
-            System.out.println(i);
-
-            String pathname = "temp_data/Thesaurus.owl";
-            pathname = "example_data/agro.owl";
-
-            if(settings[0] == 1){
-                MapDbTesting.mapDbTesting(start, true, false, "file.db", pathname, RDFFormat.RDFXML);
-            }
-
-            if(settings[1] == 1){
-                // [1, 31301, 206416]
-                // [0, 45859, 330022]
-                // [0, 30292, 209857]
-                // [29, 31511, 167648]
-                // [40, 45257, 312164] 1
-                // [36, 42486, 266519] 2
-                // [34, 43440, 249619] 3
-
-                rdfj4Testing(start, true, false, false, false, pathname);
-            }
-
-            if(settings[2] == 1){
-                long rockdbTesting = System.currentTimeMillis();
-                // rockdbTesting	end	67320
-                // rockdbTesting	end	223412 , 4 writes
-                // 148542
-
-                // 202408 Laptop 1st
-                // 190614 Laptop 2st
-                rockdbTesting(start,true, true, pathname, RDFFormat.RDFXML);
-
-                System.out.println(String.format("rockdbTesting\tend\t%s",
-                        (System.currentTimeMillis() - rockdbTesting)));
-
-            }
-
-
-        }
-
-    }
 
     private static final String cfdbPath = "./rocksdb-data-cf/";
 
@@ -242,12 +244,12 @@ public class RdfExample1 {
                     ///////////////////
                     System.out.println("Connected");
                     if(load){
-                        URL documentUrl = new File(pathname).toURI().toURL();
-                        InputStream inputStream = documentUrl.openStream();
-//
-                        String baseURI = documentUrl.toString();
+
                         RDFFormat format = rdfxml;
                         long counter = 0;
+                        URL documentUrl = new File(pathname).toURI().toURL();
+                        InputStream inputStream = documentUrl.openStream();
+                        String baseURI = documentUrl.toString();
                         try (GraphQueryResult res = QueryResults.parseGraphBackground(inputStream, baseURI, format)) {
                             while (res.hasNext()) {
                                 Statement st = res.next();

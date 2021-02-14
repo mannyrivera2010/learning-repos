@@ -16,7 +16,7 @@ import org.eclipse.rdf4j.common.io.NioFile;
 /**
  * Writes transaction statuses to a file.
  */
-class TxnStatusFile {
+public class TxnStatusFile {
 
 	public static enum TxnStatus {
 
