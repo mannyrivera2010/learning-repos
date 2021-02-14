@@ -7,13 +7,8 @@
  *******************************************************************************/
 package com.earasoft.rdf4j.sail.nativerockrdf;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -41,6 +36,7 @@ import org.eclipse.rdf4j.sail.base.SailSource;
 import org.eclipse.rdf4j.sail.base.SailStore;
 import com.earasoft.rdf4j.sail.nativerockrdf.btree.RecordIterator;
 import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeValue;
+import org.rocksdb.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,13 +47,17 @@ import org.slf4j.LoggerFactory;
  */
 class NativeSailStore implements SailStore {
 
+	static {
+		RocksDB.loadLibrary();
+	}
+
 	final Logger logger = LoggerFactory.getLogger(NativeSailStore.class);
 
 	private final TripleStore tripleStore;
 
 	private final ValueStore valueStore;
 
-	private final NamespaceStore namespaceStore;
+//	private final NamespaceStore namespaceStore;
 
 	private final ContextStore contextStore;
 
@@ -81,6 +81,20 @@ class NativeSailStore implements SailStore {
 				ValueStore.NAMESPACE_CACHE_SIZE, ValueStore.NAMESPACE_ID_CACHE_SIZE);
 	}
 
+	final CompressionOptions compressionOptions;
+	final List cfDescriptors;
+	final ColumnFamilyOptions cfOpts;
+	final List<ColumnFamilyHandle> cfHandles;
+	final DBOptions dbOptions;
+	final RocksDB rocksDB;
+	private final SstFileManager sstFileManager;
+	public static final String NAMESPACES_CF = "namespaces_cf";
+	public static final String CONTEXTS_CF = "contexts_cf";
+	public static final String INDEX_SPOC_CF = "index_spoc_cf";
+	public static final String INDEX_POSC_CF = "index_posc_cf";
+	public static final String INDEX_COSP_CF = "index_cosp_cf";
+
+	public Map<String, ColumnFamilyHandle> cfHandlesMap = new HashMap<>();;
 	/**
 	 * Creates a new {@link NativeSailStore}.
 	 */
@@ -88,11 +102,70 @@ class NativeSailStore implements SailStore {
 			int valueIDCacheSize, int namespaceCacheSize, int namespaceIDCacheSize) throws IOException, SailException {
 		boolean initialized = false;
 		try {
-			namespaceStore = new NamespaceStore(dataDir);
-			valueStore = new ValueStore(dataDir, forceSync, valueCacheSize, valueIDCacheSize, namespaceCacheSize,
+//			namespaceStore = new NamespaceStore(dataDir);
+			valueStore = new ValueStore(this, dataDir, forceSync, valueCacheSize, valueIDCacheSize, namespaceCacheSize,
 					namespaceIDCacheSize);
-			tripleStore = new TripleStore(dataDir, tripleIndexes, forceSync);
+			tripleStore = new TripleStore(this, dataDir, tripleIndexes, forceSync);
 			contextStore = new ContextStore(this, dataDir);
+
+			// rocksdb
+			https://github.com/hugegraph/hugegraph/blob/master/hugegraph-rocksdb/src/main/java/com/baidu/hugegraph/backend/store/rocksdb/RocksDBOptions.java
+			try {
+				// TODO initOptions
+				this.sstFileManager = new SstFileManager(Env.getDefault());
+
+			compressionOptions = new CompressionOptions()
+					.setEnabled(true);
+
+
+			cfOpts = new ColumnFamilyOptions()
+					.setOptimizeFiltersForHits(true)
+					.optimizeLevelStyleCompaction()
+					.optimizeUniversalStyleCompaction()
+					.setCompressionType(CompressionType.LZ4_COMPRESSION)
+					.setCompressionOptions(compressionOptions)
+					.setBottommostCompressionType(CompressionType.LZ4_COMPRESSION)
+					.setBottommostCompressionOptions(compressionOptions)
+			.setCompressionPerLevel(Arrays.asList(CompressionType.LZ4_COMPRESSION))
+
+			;
+
+			cfDescriptors = Arrays.asList(
+					// RocksDB.DEFAULT_COLUMN_FAMILY is required as first column family
+					new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)
+					// replaces namespaceStore
+					,new ColumnFamilyDescriptor(NAMESPACES_CF.getBytes(), cfOpts) // done
+					// replaces contextStore
+					,new ColumnFamilyDescriptor(CONTEXTS_CF.getBytes(), cfOpts)
+					// Replaces tripleStore
+					,new ColumnFamilyDescriptor(INDEX_SPOC_CF.getBytes(), cfOpts)
+					,new ColumnFamilyDescriptor(INDEX_POSC_CF.getBytes(), cfOpts)
+					,new ColumnFamilyDescriptor(INDEX_COSP_CF.getBytes(), cfOpts)
+			);
+			dbOptions = new DBOptions()
+					.setCreateIfMissing(true)
+					.setCreateMissingColumnFamilies(true)
+					.setAllowConcurrentMemtableWrite(true)
+					.setIncreaseParallelism(4)
+
+//                    .setAllowMmapWrites(true)
+					.setMaxSubcompactions(4);
+
+			cfHandles = new ArrayList<>();
+
+
+				rocksDB = RocksDB.open(this.dbOptions,
+						"data2_rocksdb",
+						cfDescriptors,
+						cfHandles);
+				for(ColumnFamilyHandle columnFamilyHandle: cfHandles){
+					this.cfHandlesMap.put(new String(columnFamilyHandle.getName()), columnFamilyHandle);
+				}
+			} catch (RocksDBException e) {
+				throw new SailException(e);
+			}
+			// end rocksdb
+
 			initialized = true;
 		} finally {
 			if (!initialized) {
@@ -110,9 +183,9 @@ class NativeSailStore implements SailStore {
 	public void close() throws SailException {
 		try {
 			try {
-				if (namespaceStore != null) {
-					namespaceStore.close();
-				}
+//				if (namespaceStore != null) {
+//					namespaceStore.close();
+//				}
 			} finally {
 				try {
 					if (contextStore != null) {
@@ -129,11 +202,36 @@ class NativeSailStore implements SailStore {
 						}
 					}
 				}
-
 			}
+
+			// rocksdb
+			closeRockdb();
 		} catch (IOException e) {
 			logger.warn("Failed to close store", e);
 			throw new SailException(e);
+		}
+	}
+
+	private void closeRockdb() {
+		try{
+			compressionOptions.close();
+		}finally {
+			try{
+				cfOpts.close();
+			}finally {
+				try{
+					dbOptions.close();
+				}finally {
+					try{
+						// NOTE frees the column family handles before freeing the db
+						for (final ColumnFamilyHandle cfHandle : this.cfHandles) {
+							cfHandle.close();
+						}
+					}finally {
+						rocksDB.close();
+					}
+				}
+			}
 		}
 	}
 
@@ -306,6 +404,9 @@ class NativeSailStore implements SailStore {
 		return tripleStore.cardinality(subjID, predID, objID, contextID);
 	}
 
+
+
+
 	private final class NativeSailSource extends BackingSailSource {
 
 		private final boolean explicit;
@@ -333,6 +434,7 @@ class NativeSailStore implements SailStore {
 
 	private final class NativeSailSink implements SailSink {
 
+		// https://graphdb.ontotext.com/documentation/enterprise/reasoning.html
 		private final boolean explicit;
 
 		public NativeSailSink(boolean explicit) throws SailException {
@@ -357,7 +459,7 @@ class NativeSailStore implements SailStore {
 					valueStore.sync();
 				} finally {
 					try {
-						namespaceStore.sync();
+//						namespaceStore.sync();
 					} finally {
 						try {
 							contextStore.sync();
@@ -386,7 +488,9 @@ class NativeSailStore implements SailStore {
 			sinkStoreAccessLock.lock();
 			try {
 				startTriplestoreTransaction();
-				namespaceStore.setNamespace(prefix, name);
+//				namespaceStore.setNamespace(prefix, name);
+
+				RockDbUtils.setKeyRockDb(cfHandlesMap, rocksDB, prefix, name, NAMESPACES_CF);
 			} finally {
 				sinkStoreAccessLock.unlock();
 			}
@@ -397,18 +501,23 @@ class NativeSailStore implements SailStore {
 			sinkStoreAccessLock.lock();
 			try {
 				startTriplestoreTransaction();
-				namespaceStore.removeNamespace(prefix);
+//				namespaceStore.removeNamespace(prefix);
+
+				RockDbUtils.deleteKeyRockDb(cfHandlesMap, rocksDB, prefix, NAMESPACES_CF);
 			} finally {
 				sinkStoreAccessLock.unlock();
 			}
 		}
+
+
 
 		@Override
 		public void clearNamespaces() throws SailException {
 			sinkStoreAccessLock.lock();
 			try {
 				startTriplestoreTransaction();
-				namespaceStore.clear();
+//				namespaceStore.clear();
+				RockDbUtils.recreateCfRockDb(cfHandlesMap, cfOpts, rocksDB, NAMESPACES_CF);
 			} finally {
 				sinkStoreAccessLock.unlock();
 			}
@@ -579,12 +688,12 @@ class NativeSailStore implements SailStore {
 
 		@Override
 		public String getNamespace(String prefix) throws SailException {
-			return namespaceStore.getNamespace(prefix);
+			return RockDbUtils.getKeyRockDb(cfHandlesMap, rocksDB, prefix);
 		}
 
 		@Override
 		public CloseableIteration<? extends Namespace, SailException> getNamespaces() {
-			return new CloseableIteratorIteration<Namespace, SailException>(namespaceStore.iterator());
+			return RockDbUtils.createIteratorForCFColumn(cfHandlesMap, rocksDB, NAMESPACES_CF);
 		}
 
 		@Override
@@ -601,6 +710,7 @@ class NativeSailStore implements SailStore {
 				throw new SailException("Unable to get statements", e);
 			}
 		}
-	}
+	} // end
+
 
 }

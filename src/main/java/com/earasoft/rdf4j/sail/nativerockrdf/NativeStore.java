@@ -388,7 +388,7 @@ public class NativeStore extends AbstractNotifyingSail implements FederatedServi
 	private boolean upgradeStore(File dataDir, String version) throws IOException, SailException {
 		if (version == null) {
 			// either a new store or a pre-2.8.2 store
-			ValueStore valueStore = new ValueStore(dataDir);
+			ValueStore valueStore = new ValueStore(null, dataDir); // TODO Change
 			try {
 				valueStore.checkConsistency();
 				return true; // good enough

@@ -149,6 +149,9 @@ public class DataStore implements Closeable {
 		hashFile.sync();
 		idFile.sync();
 		dataFile.sync();
+
+		// rockdb
+		// compaction???
 	}
 
 	/**
@@ -166,6 +169,8 @@ public class DataStore implements Closeable {
 				dataFile.clear();
 			}
 		}
+
+
 	}
 
 	/**

@@ -149,11 +149,11 @@ class TripleStore implements Closeable {
 	 * Constructors *
 	 *--------------*/
 
-	public TripleStore(File dir, String indexSpecStr) throws IOException, SailException {
-		this(dir, indexSpecStr, false);
+	public TripleStore(NativeSailStore nativeSailStore, File dir, String indexSpecStr) throws IOException, SailException {
+		this(nativeSailStore, dir, indexSpecStr, false);
 	}
 
-	public TripleStore(File dir, String indexSpecStr, boolean forceSync) throws IOException, SailException {
+	public TripleStore(NativeSailStore nativeSailStore, File dir, String indexSpecStr, boolean forceSync) throws IOException, SailException {
 		this.dir = dir;
 		this.forceSync = forceSync;
 		this.txnStatusFile = new TxnStatusFile(dir);

@@ -217,6 +217,7 @@ public class RdfExample1 {
         try (final ColumnFamilyOptions cfOpts = new ColumnFamilyOptions()
                 .optimizeUniversalStyleCompaction()
              .setCompressionType(CompressionType.LZ4_COMPRESSION)
+
              .setCompressionOptions(new CompressionOptions().setEnabled(true))
         ) {
             // spoc,posc,cosp

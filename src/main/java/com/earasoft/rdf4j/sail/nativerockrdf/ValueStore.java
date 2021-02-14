@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Optional;
 
+import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import org.eclipse.rdf4j.common.concurrent.locks.Lock;
 import org.eclipse.rdf4j.common.concurrent.locks.ReadWriteLockManager;
 import org.eclipse.rdf4j.common.concurrent.locks.WritePrefReadWriteLockManager;
@@ -32,6 +35,7 @@ import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeIRI;
 import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeLiteral;
 import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeResource;
 import com.earasoft.rdf4j.sail.nativerockrdf.model.NativeValue;
+import org.rocksdb.ColumnFamilyHandle;
 
 /**
  * File-based indexed storage and retrieval of RDF values. ValueStore maps RDF values to integer IDs and vice-versa.
@@ -76,6 +80,7 @@ public class ValueStore extends AbstractValueFactory {
 	 * Variables *
 	 *-----------*/
 
+	private final NativeSailStore nativeSailStore;
 	/**
 	 * Used to do the actual storage of values, once they're translated to byte arrays.
 	 */
@@ -118,17 +123,18 @@ public class ValueStore extends AbstractValueFactory {
 	 * Constructors *
 	 *--------------*/
 
-	public ValueStore(File dataDir) throws IOException {
-		this(dataDir, false);
+	public ValueStore(NativeSailStore nativeSailStore, File dataDir) throws IOException {
+		this(nativeSailStore, dataDir, false);
 	}
 
-	public ValueStore(File dataDir, boolean forceSync) throws IOException {
-		this(dataDir, forceSync, VALUE_CACHE_SIZE, VALUE_ID_CACHE_SIZE, NAMESPACE_CACHE_SIZE, NAMESPACE_ID_CACHE_SIZE);
+	public ValueStore(NativeSailStore nativeSailStore, File dataDir, boolean forceSync) throws IOException {
+		this(nativeSailStore, dataDir, forceSync, VALUE_CACHE_SIZE, VALUE_ID_CACHE_SIZE, NAMESPACE_CACHE_SIZE, NAMESPACE_ID_CACHE_SIZE);
 	}
 
-	public ValueStore(File dataDir, boolean forceSync, int valueCacheSize, int valueIDCacheSize, int namespaceCacheSize,
+	public ValueStore(NativeSailStore nativeSailStore, File dataDir, boolean forceSync, int valueCacheSize, int valueIDCacheSize, int namespaceCacheSize,
 			int namespaceIDCacheSize) throws IOException {
 		super();
+		this.nativeSailStore = nativeSailStore;
 		dataStore = new DataStore(dataDir, FILENAME_PREFIX, forceSync);
 
 		valueCache = new ConcurrentCache<>(valueCacheSize);
@@ -138,6 +144,8 @@ public class ValueStore extends AbstractValueFactory {
 
 		setNewRevision();
 	}
+
+
 
 	/*---------*
 	 * Methods *
@@ -303,6 +311,10 @@ public class ValueStore extends AbstractValueFactory {
 		byte[] valueData = value2data(value, true);
 
 		int id = dataStore.storeData(valueData);
+//		ByteArrayDataOutput idBuffer = new ByteStreams.newDataOutput();
+
+		ColumnFamilyHandle columnFamilyHandle = this.nativeSailStore.cfHandles.get(0);
+//		this.nativeSailStore.rocksDB.put(columnFamilyHandle,  );
 
 		NativeValue nv = isOwnValue ? (NativeValue) value : getNativeValue(value);
 
@@ -725,7 +737,7 @@ public class ValueStore extends AbstractValueFactory {
 
 	public static void main(String[] args) throws Exception {
 		File dataDir = new File(args[0]);
-		ValueStore valueStore = new ValueStore(dataDir);
+		ValueStore valueStore = new ValueStore(null, dataDir);
 
 		int maxID = valueStore.dataStore.getMaxID();
 		for (int id = 1; id <= maxID; id++) {
