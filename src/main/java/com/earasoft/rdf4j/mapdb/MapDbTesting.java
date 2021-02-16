@@ -1,6 +1,6 @@
 package com.earasoft.rdf4j.mapdb;
 
-import com.earasoft.rdf4j.RdfExample1;
+import com.earasoft.rdf4j.sparql.RdfExample1;
 import com.earasoft.rdf4j.utils.ByteUtils;
 import com.earasoft.rdf4j.utils.HUtils;
 import org.eclipse.rdf4j.RDF4JException;

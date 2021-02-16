@@ -1,26 +1,70 @@
-=======================
------ Families -----
+// system indexes: spoc,posc,cosp
+// cache indexes: spoc,posc,cspo,opsc
+// spoc -
+// posc - SELECT ?n WHERE { ?n a family:Family . }
+// cosp
+// opsc
+// TODO Add some blank nodes
+//===== CountAllTriples
+//SELECT (COUNT(?s) AS ?triples) WHERE { ?s ?p ?o }  limit 10
 
+===== SopOsp
+// SOP, OSP
+SELECT ?pa WHERE { <http://hello.com> ?pa "Time" }  limit 10
+
+-----
+Slice ( limit=10 )
+   Projection
+      ProjectionElemList
+         ProjectionElem "pa"
+      StatementPattern
+         Var (name=_const_417b5493_uri, value=http://hello.com, anonymous)
+         Var (name=pa)
+         Var (name=_const_27c6ed_lit_e2eec718_0, value="Time", anonymous)
+
+===== SPOC
+// SOP, OSP
+SELECT ?oa WHERE { <http://hello.com> a ?oa }  limit 10
+
+-----
+Slice ( limit=10 )
+   Projection
+      ProjectionElemList
+         ProjectionElem "oa"
+      StatementPattern
+         Var (name=_const_417b5493_uri, value=http://hello.com, anonymous)
+         Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+         Var (name=oa)
+
+===== GetAllFamilyIRIs
+PREFIX family:<http://earasoft.com/family/0.1/>
 SELECT ?aname WHERE { ?aname a family:Family . }
 
--------------
+-----
 http://earasoft.com/dataset1/family/f10
 http://earasoft.com/dataset1/family/f00
 http://earasoft.com/dataset1/family/f20
 http://earasoft.com/dataset1/family/f30
 http://earasoft.com/dataset1/family/f40
 
-=======================
------ All People Names -----
+Projection
+   ProjectionElemList
+      ProjectionElem "aname"
+   StatementPattern
+      Var (name=aname)
+      Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+      Var (name=_const_2cf2e976_uri, value=http://earasoft.com/family/0.1/Family, anonymous)
 
+===== AllPeopleNames
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 SELECT
     ?person_name
 WHERE {
     ?person a foaf:Person .
     ?person foaf:name ?person_name.
 }
-
--------------
+-----
 Kayne House
 Donna Fales
 Jamie Lee Woodley
@@ -40,8 +84,22 @@ Emmy Bannister
 Katrina Hartley
 David Smith
 
-=======================
------ Mothers Names -----
+Projection
+   ProjectionElemList
+      ProjectionElem "person_name"
+   Join
+      StatementPattern
+         Var (name=person)
+         Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+         Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+      StatementPattern
+         Var (name=person)
+         Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+         Var (name=person_name)
+
+===== AllMothersNames
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX family:<http://earasoft.com/family/0.1/>
 
 SELECT
     ?person_name  ?family
@@ -50,17 +108,44 @@ WHERE {
     ?person family:isMother ?family .
     ?person foaf:name ?person_name.
 }
-order by asc(?person_name)
+ORDER BY asc(?person_name)
 
--------------
+-----
 Donna Fales is the mother of  http://earasoft.com/dataset1/family/f40
 Katrina Hartley is the mother of  http://earasoft.com/dataset1/family/f20
 Kelise Beck is the mother of  http://earasoft.com/dataset1/family/f10
 Rebecca Berger is the mother of  http://earasoft.com/dataset1/family/f00
 Susan Schneider is the mother of  http://earasoft.com/dataset1/family/f30
 
-=======================
------ Fathers Names with kids names -----
+Projection
+   ProjectionElemList
+      ProjectionElem "person_name"
+      ProjectionElem "family"
+   Order
+      OrderElem (ASC)
+         Var (name=person_name)
+      Join
+         Join
+            StatementPattern
+               Var (name=person)
+               Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+               Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+            StatementPattern
+               Var (name=person)
+               Var (name=_const_719499ff_uri, value=http://earasoft.com/family/0.1/isMother, anonymous)
+               Var (name=family)
+         StatementPattern
+            Var (name=person)
+            Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+            Var (name=person_name)
+
+===== FathersNamesWithKidsNames
+// good indexes to have:
+// POSC: ?person a foaf:Person (when posc was missing, query was very slow)
+// OPSC:  ?son family:isSon ?family - ?family is know at this point
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX family:<http://earasoft.com/family/0.1/>
 
 SELECT
     ?person_name
@@ -85,7 +170,7 @@ WHERE {
 }
 order by asc(?person_name)
 
--------------
+-----
 Christos Bates 	 http://earasoft.com/dataset1/family/f00 
 	 None 
 	 David Smith
@@ -117,9 +202,54 @@ David Smith 	 http://earasoft.com/dataset1/family/f40
 	 Jamie Lee Woodley 
 	 None
 
-=======================
------ Parents Names with kids (sons/daugthers) names -----
+Projection
+   ProjectionElemList
+      ProjectionElem "person_name"
+      ProjectionElem "family"
+      ProjectionElem "daugther_name"
+      ProjectionElem "son_name"
+   Order
+      OrderElem (ASC)
+         Var (name=person_name)
+      Join
+         Join
+            Join / The hash join algorithm depends on being an equijoin: it needs to be able to do a simple equality comparison on the overlapping binding
+               StatementPattern
+                  Var (name=person)
+                  Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                  Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+               StatementPattern
+                  Var (name=person)
+                  Var (name=_const_64dd6498_uri, value=http://earasoft.com/family/0.1/isFather, anonymous)
+                  Var (name=family)
+            StatementPattern
+               Var (name=person)
+               Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+               Var (name=person_name)
+         Union
+            Join
+               StatementPattern
+                  Var (name=son)
+                  Var (name=_const_2cb287d6_uri, value=http://earasoft.com/family/0.1/isSon, anonymous)
+                  Var (name=family)
+               StatementPattern
+                  Var (name=son)
+                  Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                  Var (name=son_name)
+            Join
+               StatementPattern
+                  Var (name=daugther)
+                  Var (name=_const_d501beac_uri, value=http://earasoft.com/family/0.1/isDaugther, anonymous)
+                  Var (name=family)
+               StatementPattern
+                  Var (name=daugther)
+                  Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                  Var (name=daugther_name)
 
+===== AllParentsNamesWithKidsNames
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX family:<http://earasoft.com/family/0.1/>
 SELECT
     ?father_name
     ?mother_name
@@ -166,8 +296,85 @@ David Smith 	 Donna Fales 	 http://earasoft.com/dataset1/family/f40
 	 Sons: Clinton Yates, Campbell Rhodes, Allan Montes 
 	 Daugthers: Milla Haigh, Bayley Fletcher, Jamie Lee Woodley
 
-=======================
------ Parents Names with kids (kids) names -----
+Projection
+   ProjectionElemList
+      ProjectionElem "father_name"
+      ProjectionElem "mother_name"
+      ProjectionElem "family"
+      ProjectionElem "son_names"
+      ProjectionElem "d_names"
+   Order
+      OrderElem (ASC)
+         Var (name=person_name)
+      Extension
+         ExtensionElem (son_names)
+            GroupConcat
+               Var (name=son_name)
+         ExtensionElem (d_names)
+            GroupConcat
+               Var (name=daugther_name)
+         Group (father_name, mother_name, family)
+            Join
+               Join
+                  Join
+                     Join
+                        Join
+                           Join
+                              StatementPattern
+                                 Var (name=person)
+                                 Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                                 Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+                              StatementPattern
+                                 Var (name=person)
+                                 Var (name=_const_64dd6498_uri, value=http://earasoft.com/family/0.1/isFather, anonymous)
+                                 Var (name=family)
+                           StatementPattern
+                              Var (name=person)
+                              Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                              Var (name=father_name)
+                        StatementPattern
+                           Var (name=person1)
+                           Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                           Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+                     StatementPattern
+                        Var (name=person1)
+                        Var (name=_const_719499ff_uri, value=http://earasoft.com/family/0.1/isMother, anonymous)
+                        Var (name=family)
+                  StatementPattern
+                     Var (name=person1)
+                     Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                     Var (name=mother_name)
+               Union
+                  Join
+                     StatementPattern
+                        Var (name=son)
+                        Var (name=_const_2cb287d6_uri, value=http://earasoft.com/family/0.1/isSon, anonymous)
+                        Var (name=family)
+                     StatementPattern
+                        Var (name=son)
+                        Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                        Var (name=son_name)
+                  Join
+                     StatementPattern
+                        Var (name=daugther)
+                        Var (name=_const_d501beac_uri, value=http://earasoft.com/family/0.1/isDaugther, anonymous)
+                        Var (name=family)
+                     StatementPattern
+                        Var (name=daugther)
+                        Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                        Var (name=daugther_name)
+            GroupElem
+               GroupConcat
+                  Var (name=son_name)
+            GroupElem
+               GroupConcat
+                  Var (name=daugther_name)
+
+
+===== ParentsNamesWithKidsNames
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX family:<http://earasoft.com/family/0.1/>
 
 SELECT
   ?father_name
@@ -197,7 +404,7 @@ WHERE {
 group by ?father_name ?mother_name ?family
 order by asc(?person_name)
 
--------------
+-----
 Conner Watkins 	 Kelise Beck 	 http://earasoft.com/dataset1/family/f10 
 	 Kids: Donna Fales
 Conan Mendez 	 Katrina Hartley 	 http://earasoft.com/dataset1/family/f20 
@@ -209,8 +416,77 @@ Christos Bates 	 Rebecca Berger 	 http://earasoft.com/dataset1/family/f00
 David Smith 	 Donna Fales 	 http://earasoft.com/dataset1/family/f40 
 	 Kids: Clinton Yates, Campbell Rhodes, Allan Montes, Milla Haigh, Bayley Fletcher, Jamie Lee Woodley
 
-=======================
------ Bayley Fletcher Siblings -----
+Projection
+   ProjectionElemList
+      ProjectionElem "father_name"
+      ProjectionElem "mother_name"
+      ProjectionElem "family"
+      ProjectionElem "kids_names"
+   Order
+      OrderElem (ASC)
+         Var (name=person_name)
+      Extension
+         ExtensionElem (kids_names)
+            GroupConcat
+               Var (name=kids_name)
+         Group (father_name, mother_name, family)
+            Join
+               Join
+                  Join
+                     Join
+                        Join
+                           Join
+                              StatementPattern
+                                 Var (name=person)
+                                 Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                                 Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+                              StatementPattern
+                                 Var (name=person)
+                                 Var (name=_const_64dd6498_uri, value=http://earasoft.com/family/0.1/isFather, anonymous)
+                                 Var (name=family)
+                           StatementPattern
+                              Var (name=person)
+                              Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                              Var (name=father_name)
+                        StatementPattern
+                           Var (name=person1)
+                           Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                           Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+                     StatementPattern
+                        Var (name=person1)
+                        Var (name=_const_719499ff_uri, value=http://earasoft.com/family/0.1/isMother, anonymous)
+                        Var (name=family)
+                  StatementPattern
+                     Var (name=person1)
+                     Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                     Var (name=mother_name)
+               Union
+                  Join
+                     StatementPattern
+                        Var (name=son)
+                        Var (name=_const_2cb287d6_uri, value=http://earasoft.com/family/0.1/isSon, anonymous)
+                        Var (name=family)
+                     StatementPattern
+                        Var (name=son)
+                        Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                        Var (name=kids_name)
+                  Join
+                     StatementPattern
+                        Var (name=daugther)
+                        Var (name=_const_d501beac_uri, value=http://earasoft.com/family/0.1/isDaugther, anonymous)
+                        Var (name=family)
+                     StatementPattern
+                        Var (name=daugther)
+                        Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                        Var (name=kids_name)
+            GroupElem
+               GroupConcat
+                  Var (name=kids_name)
+
+===== BayleyFletcherSiblings
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX family:<http://earasoft.com/family/0.1/>
 
 SELECT
   ?target_name ?siblings_name
@@ -237,9 +513,62 @@ WHERE {
   FILTER ( ?person != ?person1  )
 }
 
--------------
+-----
 Bayley Fletcher 	 Milla Haigh
 Bayley Fletcher 	 Allan Montes
 Bayley Fletcher 	 Campbell Rhodes
 Bayley Fletcher 	 Jamie Lee Woodley
 Bayley Fletcher 	 Clinton Yates
+
+Projection
+   ProjectionElemList
+      ProjectionElem "target_name"
+      ProjectionElem "siblings_name"
+   Filter
+      Compare (!=)
+         Var (name=person)
+         Var (name=person1)
+      Join
+         Join
+            Join
+               Join
+                  StatementPattern
+                     Var (name=person)
+                     Var (name=_const_f5e5585a_uri, value=http://www.w3.org/1999/02/22-rdf-syntax-ns#type, anonymous)
+                     Var (name=_const_e1df31e0_uri, value=http://xmlns.com/foaf/0.1/Person, anonymous)
+                  StatementPattern
+                     Var (name=person)
+                     Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                     Var (name=_const_e3977461_lit_e2eec718_0, value="Bayley Fletcher", anonymous)
+               StatementPattern
+                  Var (name=person)
+                  Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                  Var (name=target_name)
+            Union
+               StatementPattern
+                  Var (name=person)
+                  Var (name=_const_2cb287d6_uri, value=http://earasoft.com/family/0.1/isSon, anonymous)
+                  Var (name=family)
+               StatementPattern
+                  Var (name=person)
+                  Var (name=_const_d501beac_uri, value=http://earasoft.com/family/0.1/isDaugther, anonymous)
+                  Var (name=family)
+         Union
+            Join
+               StatementPattern
+                  Var (name=person1)
+                  Var (name=_const_2cb287d6_uri, value=http://earasoft.com/family/0.1/isSon, anonymous)
+                  Var (name=family)
+               StatementPattern
+                  Var (name=person1)
+                  Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                  Var (name=siblings_name)
+            Join
+               StatementPattern
+                  Var (name=person1)
+                  Var (name=_const_d501beac_uri, value=http://earasoft.com/family/0.1/isDaugther, anonymous)
+                  Var (name=family)
+               StatementPattern
+                  Var (name=person1)
+                  Var (name=_const_23b7c3b6_uri, value=http://xmlns.com/foaf/0.1/name, anonymous)
+                  Var (name=siblings_name)
