@@ -17,6 +17,7 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
       <rdf4j.version>2.5.5</rdf4j.version>
+      <driver.version>4.1.0</driver.version>
 
   </properties>
 
@@ -29,6 +30,24 @@
       </dependency>
 
 
+      <dependency>
+          <groupId>com.datastax.oss</groupId>
+          <artifactId>java-driver-core</artifactId>
+          <version>${driver.version}</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.datastax.oss</groupId>
+          <artifactId>java-driver-query-builder</artifactId>
+          <version>${driver.version}</version>
+      </dependency>
+
+
+      <dependency>
+          <groupId>com.datastax.oss</groupId>
+          <artifactId>java-driver-mapper-runtime</artifactId>
+          <version>${driver.version}</version>
+      </dependency>
 
 
       <!-- https://mvnrepository.com/artifact/org.mapdb/mapdb -->

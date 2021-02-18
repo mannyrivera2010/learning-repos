@@ -2,10 +2,31 @@ package com.earasoft.rdf4j.sail.rocksDbStore.rockdb;
 
 import org.eclipse.rdf4j.sail.SailException;
 import org.rocksdb.*;
+import org.rocksdb.util.BytewiseComparator;
+import org.rocksdb.util.IntComparator;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 
-public class RockDbHolding {
+public class RockDbHolding implements AutoCloseable{
+
+    // https://github.com/facebook/rocksdb/blob/9df78a94f181545dfb1d867dbf11cdf11723c7f6/java/src/main/java/org/rocksdb/util/BytewiseComparator.java#L24
+    public final class StatementComparator extends AbstractComparator {
+
+        protected StatementComparator(ComparatorOptions comparatorOptions) {
+            super(comparatorOptions);
+        }
+
+        @Override
+        public String name() {
+            return "Custom";
+        }
+
+        @Override
+        public int compare(ByteBuffer byteBuffer, ByteBuffer byteBuffer1) {
+            return 1;
+        }
+    }
 
     public static final String NAMESPACES_CF = "NAMESPACES_CF";
     public static final String CONTEXTS_CF = "CONTEXTS_CF";
@@ -27,10 +48,11 @@ public class RockDbHolding {
     public final DBOptions dbOptions;
     public final RocksDB rocksDB;
     private final SstFileManager sstFileManager;
+    ComparatorOptions comparatorOptions;
 
     public Map<String, ColumnFamilyHandle> cfHandlesMap = new HashMap<>();
 
-    public RockDbHolding() {
+    public RockDbHolding(String dataPath) {
         // rocksdb
         // github.com/hugegraph/hugegraph/blob/master/hugegraph-rocksdb/src/main/java/com/baidu/hugegraph/backend/store/rocksdb/RocksDBOptions.java
         try {
@@ -40,7 +62,16 @@ public class RockDbHolding {
             compressionOptions = new CompressionOptions()
                     .setEnabled(true);
 
+            ComparatorOptions comparatorOptions = new ComparatorOptions();
+            comparatorOptions.setUseDirectBuffer(true); // https://github.com/facebook/rocksdb/issues/6608
+
+//            comparatorOptions.setReusedSynchronisationType(ReusedSynchronisationType.MUTEX);
+//            comparatorOptions.setUseDirectBuffer(false);
+//            comparatorOptions.setMaxReusedBufferSize(-1);
+
+
             cfOpts = new ColumnFamilyOptions()
+                    .setComparator(new IntComparator(comparatorOptions))
                     .setOptimizeFiltersForHits(true)
                     .optimizeLevelStyleCompaction()
                     .optimizeUniversalStyleCompaction()
@@ -78,7 +109,7 @@ public class RockDbHolding {
             cfHandles = new ArrayList<>();
 
             rocksDB = RocksDB.open(this.dbOptions,
-                    "data2_rocksdb",
+                    dataPath,
                     cfDescriptors,
                     cfHandles);
             for (ColumnFamilyHandle columnFamilyHandle : cfHandles) {
@@ -94,6 +125,10 @@ public class RockDbHolding {
      */
     public void closeRockdb() {
         try {
+            if(comparatorOptions != null){
+                comparatorOptions.close();
+            }
+
             compressionOptions.close();
         } finally {
             try {
@@ -137,4 +172,8 @@ public class RockDbHolding {
 //        }
     }
 
+    @Override
+    public void close() throws Exception {
+        closeRockdb();
+    }
 }

@@ -18,8 +18,8 @@ import com.earasoft.rdf4j.sail.rocksDbStore.pipe.NativeSailSink;
 import com.earasoft.rdf4j.sail.rocksDbStore.pipe.NativeSailSource;
 import com.earasoft.rdf4j.sail.rocksDbStore.pipe.NativeStatementIterator;
 import com.earasoft.rdf4j.sail.rocksDbStore.rockdb.RockDbHolding;
-import com.earasoft.rdf4j.sail.rocksDbStore.zstore.ContextStore;
-import com.earasoft.rdf4j.sail.rocksDbStore.zstore.TripleStore;
+import com.earasoft.rdf4j.sail.nativeStore.ContextStore;
+import com.earasoft.rdf4j.sail.nativeStore.TripleStore;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.ConvertingIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
@@ -94,7 +94,7 @@ public class RocksDbSailStore implements SailStore {
 			tripleStore = new TripleStore(this, dataDir, tripleIndexes, forceSync);
 			contextStore = new ContextStore(this);
 
-			rockDbHolding = new RockDbHolding(); // starts rocksdb
+			rockDbHolding = new RockDbHolding("data2_rocksdb"); // starts rocksdb
 			initialized = true;
 		} finally {
 			if (!initialized) {

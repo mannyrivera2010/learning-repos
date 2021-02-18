@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package com.earasoft.rdf4j.sail.rocksDbStore.zstore;
+package com.earasoft.rdf4j.sail.nativeStore;
 
 import java.io.Closeable;
 import java.io.File;

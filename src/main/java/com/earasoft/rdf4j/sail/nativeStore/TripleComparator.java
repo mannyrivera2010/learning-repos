@@ -1,4 +1,4 @@
-package com.earasoft.rdf4j.sail.rocksDbStore.zstore;
+package com.earasoft.rdf4j.sail.nativeStore;
 
 import com.earasoft.rdf4j.sail.nativeStore.btree.RecordComparator;
 import org.eclipse.rdf4j.common.io.ByteArrayUtil;

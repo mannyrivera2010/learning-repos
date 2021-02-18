@@ -92,11 +92,21 @@ public class RockDbState {
         try {
             ColumnFamilyHandle columnFamilyHandle = rhold.cfHandlesMap.get(columnFamilyName);
 
-            rhold.rocksDB.put(
-                    columnFamilyHandle,
+            WriteBatch writeBatch = new WriteBatch();
+
+            if(key.length == 0){
+                throw new RuntimeException("WHY");
+            }
+            writeBatch.put(columnFamilyHandle,
                     key,
-                    value
-            );
+                    value);
+
+
+            WriteOptions writeOptions = new WriteOptions();
+            rhold.rocksDB.write(writeOptions, writeBatch);
+            writeBatch.close();
+            writeOptions.close();
+
         } catch (RocksDBException e) {
             throw new SailException(e);
         }
@@ -107,11 +117,24 @@ public class RockDbState {
         try {
             ColumnFamilyHandle columnFamilyHandle = rhold.cfHandlesMap.get(columnFamilyName);
 
-            rhold.rocksDB.put(
-                    columnFamilyHandle,
+
+//            rhold.rocksDB.put(
+//                    columnFamilyHandle,
+//                    key.getBytes(StandardCharsets.UTF_8),
+//                    value.getBytes(StandardCharsets.UTF_8)
+//            );
+
+            WriteBatch writeBatch = new WriteBatch();
+
+            writeBatch.put(columnFamilyHandle,
                     key.getBytes(StandardCharsets.UTF_8),
                     value.getBytes(StandardCharsets.UTF_8)
             );
+
+
+            rhold.rocksDB.write(new WriteOptions(), writeBatch);
+
+            writeBatch.close(); // so important to close this
         } catch (RocksDBException e) {
             throw new SailException(e);
         }

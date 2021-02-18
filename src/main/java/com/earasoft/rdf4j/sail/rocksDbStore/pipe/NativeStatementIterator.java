@@ -9,7 +9,7 @@ package com.earasoft.rdf4j.sail.rocksDbStore.pipe;
 
 import java.io.IOException;
 
-import com.earasoft.rdf4j.sail.rocksDbStore.zstore.TripleStore;
+import com.earasoft.rdf4j.sail.nativeStore.TripleStore;
 import com.earasoft.rdf4j.sail.nativeStore.datastore.ValueStore;
 import org.eclipse.rdf4j.common.io.ByteArrayUtil;
 import org.eclipse.rdf4j.common.iteration.LookAheadIteration;

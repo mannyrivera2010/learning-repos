@@ -10,7 +10,7 @@ package com.earasoft.rdf4j.sail.rocksDbStore.evaluation;
 import java.io.IOException;
 
 import com.earasoft.rdf4j.sail.nativeStore.datastore.ValueStore;
-import com.earasoft.rdf4j.sail.rocksDbStore.zstore.TripleStore;
+import com.earasoft.rdf4j.sail.nativeStore.TripleStore;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;

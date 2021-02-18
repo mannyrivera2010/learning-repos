@@ -1,4 +1,4 @@
-package com.earasoft.rdf4j.sail.rocksDbStore.zstore;
+package com.earasoft.rdf4j.sail.nativeStore;
 
 import com.earasoft.rdf4j.sail.rocksDbStore.RocksDbSailStore;
 import com.earasoft.rdf4j.sail.rocksDbStore.rockdb.RockByteUtils;
@@ -7,7 +7,6 @@ import com.earasoft.rdf4j.sail.rocksDbStore.rockdb.RockDbState;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Longs;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
