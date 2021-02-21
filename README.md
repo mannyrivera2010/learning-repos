@@ -7,3 +7,5 @@ https://codyburleson.com/blog/sparql-examples-order-by
 https://www.oreilly.com/library/view/data-algorithms/9781491906170/ch01.html#datetemperaturepair_class
 
 https://youtu.be/g8CEcM9NIJw
+
+https://link.medium.com/JLIsXKM02db
