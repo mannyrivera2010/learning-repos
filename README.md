@@ -12,3 +12,4 @@ https://link.medium.com/JLIsXKM02db
 
 https://www.codota.com/web/assistant/code/rs/5c788a6996b4b300017d2c63#L95
 
+https://tikv.github.io/deep-dive-tikv/consensus-algorithm/paxos.html
