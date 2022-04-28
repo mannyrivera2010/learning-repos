@@ -1,0 +1,1 @@
+mvn package exec:java -DskipTests -Dexec.mainClass=com.earasoft.beam.pubmed.PubmedDriver -Dexec.args="--runner=JetRunner --jetLocalMode=3 --inputFile=pubmed*.xml.gz --output=out" -Pjet-runner

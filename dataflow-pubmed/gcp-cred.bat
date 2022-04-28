@@ -1,0 +1,1 @@
+set GOOGLE_APPLICATION_CREDENTIALS=%userprofile%\creds\dataflow-cred.json
