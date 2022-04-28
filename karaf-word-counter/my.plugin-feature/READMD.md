@@ -1,0 +1,1 @@
+feature:repo-add mvn:my.plugin/my.plugin-feature/1.0-SNAPSHOT/xml/features 

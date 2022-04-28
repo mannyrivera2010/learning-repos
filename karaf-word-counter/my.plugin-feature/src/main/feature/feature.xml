@@ -1,0 +1,15 @@
+<features xmlns="http://karaf.apache.org/xmlns/features/v1.3.0" name="my-plugin-features">
+    <feature name="my-plugin-server-core">
+        <feature prerequisite="true">scr</feature>
+        <feature prerequisite="true">pax-http-whiteboard</feature>
+        <feature prerequisite="true">aries-blueprint</feature>
+    </feature>
+
+    <feature name="my-plugin-feature" description="my.plugin Dependency Bundles" version="${project.version}">
+        <bundle start-level="80">mvn:my.plugin/words.api/${project.version}</bundle>
+        <bundle start-level="85">mvn:my.plugin/words.impl/${project.version}</bundle>
+        <bundle start-level="90">mvn:my.plugin/words.rest/${project.version}</bundle>
+
+        <bundle start-level="95">mvn:my.plugin/words.web/${project.version}</bundle>
+    </feature>
+</features>
