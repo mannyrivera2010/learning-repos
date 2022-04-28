@@ -72,5 +72,4 @@ searcher.setSimilarity(new LMDirichletSimilarity());
     1.0 = dl, length of field
     0.0019607844 = collection probability
 ``` 
-    
->>>>>>> branch_1
+
